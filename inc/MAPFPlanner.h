@@ -2,12 +2,13 @@
 #include <ctime>
 #include "SharedEnv.h"
 #include "ActionModel.h"
-
+#include "PIBT/PIBT.h"
 
 class MAPFPlanner
 {
 public:
     SharedEnvironment* env;
+    PIBT pibt {env};
 
 	MAPFPlanner(SharedEnvironment* env): env(env){};
     MAPFPlanner(){env = new SharedEnvironment();};

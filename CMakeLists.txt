@@ -28,7 +28,11 @@ include_directories("inc")
 # default planner
 include_directories("default_planner")
 
-file(GLOB SOURCES "src/*.cpp" "default_planner/*.cpp")
+# my
+include_directories("inc/RRA_star" "inc/PIBT")
+
+
+file(GLOB SOURCES "src/*.cpp" "default_planner/*.cpp" "src/RRA_star/*.cpp" "src/PIBT/*.cpp")
 
 
 # Find Boost
