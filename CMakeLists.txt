@@ -29,10 +29,10 @@ include_directories("inc")
 include_directories("default_planner")
 
 # my
-include_directories("inc/RRA_star" "inc/PIBT")
+include_directories("inc/RRA_star" "inc/PIBT" "inc/reduce_map")
 
 
-file(GLOB SOURCES "src/*.cpp" "default_planner/*.cpp" "src/RRA_star/*.cpp" "src/PIBT/*.cpp")
+file(GLOB SOURCES "src/*.cpp" "default_planner/*.cpp" "src/RRA_star/*.cpp" "src/PIBT/*.cpp" "src/reduce_map/*.cpp")
 
 
 # Find Boost
