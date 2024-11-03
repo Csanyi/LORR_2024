@@ -88,6 +88,10 @@ int RRAstar::getManhattanDist(int loc1, int loc2) const {
     return abs(loc1_x - loc2_x) + abs(loc1_y - loc2_y);
 }
 
+bool RRAstar::isDistKnown(int loc, int dir) const {
+    return closed.find(loc * 4 + dir) != closed.end();
+}
+
 std::list<std::pair<int,int>> RRAstar::getNeighbors(int loc,int dir) const
 {
     std::list<std::pair<int,int>> neighbors;

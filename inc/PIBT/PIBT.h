@@ -1,7 +1,7 @@
 #ifndef PIBT_H
 #define PIBT_H
 
-#include<vector>
+#include <vector>
 #include "SharedEnv.h"
 #include "ActionModel.h"
 #include "PIBT/Agent.h"
@@ -21,8 +21,6 @@ private:
     std::vector<int> nextReservations;
 
     bool getNextLoc(Agent* const a, const Agent* const b);
-    std::vector<std::pair<int,int>> getNeighbors(Agent* const a) const;
-    bool validateMove(int loc1, int loc2) const;
     Action getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent* const a);
 
     void setGoalsParallel();

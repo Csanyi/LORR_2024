@@ -28,20 +28,17 @@ void PIBT::initialize() {
         agents.push_back(agent);
         ++i;
     }
-
 }
 
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
     TimePoint startTime  {std::chrono::steady_clock::now()};
     TimePoint endTime {startTime + std::chrono::milliseconds(timeLimit - 20)};
 
-    int newGoalCnt {0};
     for (auto& agent : agents) {
-        if (agent->isNewGoal()) { ++newGoalCnt; }
         prevReservations[agent->getLoc()] = agent->id;
     }
 
-    if (newGoalCnt > 99 || (newGoalCnt > 2 && env->map.size() > 9999)) {
+    if (env->map.size() > 9999) {
         setGoalsParallel(); 
     } 
     else {
@@ -72,7 +69,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 }
 
 bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
-    auto neighbors = getNeighbors(a);
+    auto neighbors = a->getNeighborsWithDist();
     std::sort(neighbors.begin(), neighbors.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
         if (a.second == b.second) {
             return prevReservations[a.first] == -1;
@@ -106,39 +103,6 @@ bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
     }
 
     return false;
-}
-
-std::vector<std::pair<int,int>> PIBT::getNeighbors(Agent* const a) const {
-    std::vector<std::pair<int,int>> neighbours;
-    int loc {a->getLoc()};
-    int dir {a->getDir()};
-    int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
-
-    for (int i{0}; i < 4; ++i) {
-        if (validateMove(candidates[i], loc)) {
-            neighbours.emplace_back(std::make_pair(candidates[i], a->getDist(candidates[i], i)));
-        }
-    }
-
-    neighbours.emplace_back(std::make_pair(loc, a->getDist(loc, dir)));
-
-    return neighbours;
-}
-
-bool PIBT::validateMove(int loc1, int loc2) const {
-    int loc_x {loc1 / env->cols};
-    int loc_y {loc1 % env->cols};
-    if (env->map[loc1] == 1 || loc_x >= env->rows || loc_y >= env->cols || loc_x < 0 || loc_y < 0) {
-        return false;
-    }
-
-    int loc2_x {loc2 / env->cols};
-    int loc2_y {loc2 % env->cols};
-    if (abs(loc_x - loc2_x) + abs(loc_y - loc2_y) > 1) {
-        return false;
-    }
-
-    return true;
 }
 
 Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent* const a) {
@@ -211,6 +175,17 @@ void PIBT::setGoalsParallel() {
     for (auto& agent : agents) {
         if (agent->isNewGoal()) {
             boost::asio::post(pool, [agent]() { agent->setGoal(); });
+        }
+        else {
+            auto neighbors = agent->getNeighborsWithUnknownDist();
+
+            if (!neighbors.empty()) {
+                boost::asio::post(pool, [agent, neighbors]() { 
+                    for (auto& neighbor : neighbors) {
+                        agent->getDist(neighbor.first, neighbor.second);
+                    }
+                });
+            }
         }
     }
 
