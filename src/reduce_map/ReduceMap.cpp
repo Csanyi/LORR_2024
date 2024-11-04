@@ -355,3 +355,63 @@ void ReduceMap::printReducedMapWaypoints() const
     std::cout << "Waypoint count: " << cnt << '\n';
     std::cout << "\n\n";
 }
+
+void ReduceMap::eraseDeadEnds() {
+    deadEndMap = env->map;
+    bool changed {true};
+    int cnt {0};
+
+    while (changed) {
+        changed = false;
+        for (int i {0}; i < deadEndMap.size(); ++i) {
+            if (deadEndMap[i] > 0) { continue; }
+
+            if (isDeadLoc(i)) {
+                deadEndMap[i] = 2;
+                changed = true;
+                ++cnt;
+                std::cout << '(' << i / env->cols << ';' << i % env->cols << ")\n"; 
+            }
+        }
+    }
+
+    std::cout << "erase cnt: " << cnt << '\n';
+}
+
+bool ReduceMap::isDeadLoc(int location) const {
+    int cnt1 {0};
+    int cnt2 {0};
+
+    int x {location / env->cols};
+    int y {location % env->cols};
+
+    // right
+    if (y + 1 < env->cols) {
+        if (deadEndMap[location + 1] == 1) { ++cnt1; }
+        else if (deadEndMap[location + 1] == 2) { ++cnt2; }
+    }
+    else { ++cnt1; }
+
+    // left
+    if (y - 1 >= 0) {
+        if (deadEndMap[location - 1] == 1) { ++cnt1; }
+        else if (deadEndMap[location - 1] == 2) { ++cnt2; }
+    } 
+    else { ++cnt1; }
+
+    // top
+    if (x - 1 >= 0) {
+        if (deadEndMap[location - env->cols] == 1) { ++cnt1; }
+        else if (deadEndMap[location - env->cols] == 2) { ++cnt2; }
+    } 
+    else { ++cnt1; }
+
+    // bottom
+    if (x + 1 < env->rows) {
+        if (deadEndMap[location + env->cols] == 1) { ++cnt1; }
+        else if (deadEndMap[location + env->cols] == 2) { ++cnt2; }
+    } 
+    else { ++cnt1; }
+
+    return cnt1 == 3 || (cnt1 == 2 && cnt2 == 1);
+}

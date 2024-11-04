@@ -28,6 +28,8 @@ void PIBT::initialize() {
         agents.push_back(agent);
         ++i;
     }
+
+    reduce.eraseDeadEnds();
 }
 
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
@@ -78,13 +80,11 @@ bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
     });
 
     for (const auto& neighbor : neighbors) {
-        if (nextReservations[neighbor.first] != -1) {
-            continue;
-        }
+        if (nextReservations[neighbor.first] != -1) { continue; }
 
-        if (b != nullptr && prevReservations[neighbor.first] == b->id) {
-            continue;
-        }
+        if (b != nullptr && prevReservations[neighbor.first] == b->id) { continue; }
+
+        if (b != nullptr && reduce.deadEndMap[neighbor.first] == 2) { continue; }
 
         a->nextLoc = neighbor.first;
         nextReservations[neighbor.first] = a->id;
