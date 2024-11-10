@@ -16,6 +16,7 @@ public:
     void initialize(int start, int starDir, int goal);
     int abstractDist(int loc, int dir);
     void reset();
+    bool isDistKnown(int loc, int dir) const;
 
 private:
     SharedEnvironment* env;

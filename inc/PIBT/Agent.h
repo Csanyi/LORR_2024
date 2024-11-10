@@ -18,11 +18,15 @@ public:
     int getDir() const;
     bool isNewGoal() const;
 
+    std::vector<std::pair<int,int>> getNeighborsWithDist();
+    std::vector<std::pair<int,int>> getNeighborsWithUnknownDist() const;
+
 private:
     SharedEnvironment* env;
     RRAstar heuristic;
     int goal {-1};
 
+    bool validateMove(int loc1, int loc2) const;
 };
 
 #endif // AGENT_H

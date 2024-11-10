@@ -18,6 +18,10 @@ public:
     void printReducedMap() const;
     void printReducedMapWaypoints() const;
 
+    void eraseDeadEnds();
+
+    std::vector<int> deadEndMap;
+
 private:
     const int MAP_PRINT_WIDTH = 550;
     const int MAP_PRINT_OFFSET = 0;
@@ -36,6 +40,8 @@ private:
 
     int countReducedVerticalNeighbours(int location) const;
     int countReducedHorizontalNeighbours(int location) const;
+
+    bool isDeadLoc(int location) const;
 };
 
 #endif // REDUCEMAP_H

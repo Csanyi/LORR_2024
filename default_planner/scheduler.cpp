@@ -18,8 +18,10 @@ void schedule_plan(int time_limit, std::vector<int> & proposed_schedule,  Shared
     TimePoint endtime = std::chrono::steady_clock::now() + std::chrono::milliseconds(time_limit);
     // cout<<"schedule plan limit" << time_limit <<endl;
 
-    proposed_schedule.resize(env->num_of_agents, -1); //default no schedule
-
+    proposed_schedule.resize(env->num_of_agents);
+    for (int i = 0; i < env->num_of_agents; ++i) {
+        proposed_schedule[i] = env->curr_task_schedule[i];
+    }
 
     int i_task, min_task_i, min_task_makespan, dist, c_loc, count;
     clock_t start = clock();
@@ -61,10 +63,6 @@ void schedule_plan(int time_limit, std::vector<int> & proposed_schedule,  Shared
             }
             
 
-        }
-        else
-        {
-            proposed_schedule[i] = env->curr_task_schedule[i];
         }
     }
     // cout << ((float)(clock() - start))/CLOCKS_PER_SEC <<endl;
