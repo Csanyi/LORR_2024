@@ -17,6 +17,7 @@ public:
 
 private:
     SharedEnvironment* env;
+    std::vector<Agent*> agentsById;
     std::vector<Agent*> agents;
     std::vector<int> prevReservations;
     std::vector<int> nextReservations;

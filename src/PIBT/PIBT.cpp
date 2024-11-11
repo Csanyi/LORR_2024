@@ -7,26 +7,16 @@
 #include "PIBT/PIBT.h"
 
 void PIBT::initialize() {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0.0, 1.0);
-
-    std::set<double> uniqueValues;
-
-    while (uniqueValues.size() < env->num_of_agents) {
-        double randomValue = dis(gen);
-        uniqueValues.insert(randomValue);
-    }
-
     prevReservations.resize(env->map.size(), -1);
     nextReservations.resize(env->map.size(), -1);
 
-    agents.reserve(env->num_of_agents);    
-    int i {0};
-    for (const auto& p : uniqueValues) {
-        Agent* agent = new Agent(i, 1 - p, env);
+    agents.reserve(env->num_of_agents);  
+    agentsById.reserve(env->num_of_agents);    
+  
+    for (int i {0}; i < env->num_of_agents; ++i) {
+        Agent* agent = new Agent(i, env);
         agents.push_back(agent);
-        ++i;
+        agentsById.push_back(agent);
     }
 
     reduce.eraseDeadEnds();
@@ -38,6 +28,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 
     for (auto& agent : agents) {
         prevReservations[agent->getLoc()] = agent->id;
+        if (reduce.deadEndMap[agent->getLoc()] != 2) { agent->resetPriority(); }
     }
 
     if (env->map.size() > 9999) {
@@ -47,6 +38,13 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
         setGoals(endTime);
     }
 
+    std::sort(agents.begin(), agents.end(), [](const Agent* a, const Agent* b) {
+        if (a->p == b->p) {
+            return a->id < b->id;
+        }
+        return a->p < b->p;
+    });
+    
     for (auto& agent : agents) {
         if (std::chrono::steady_clock::now() > endTime) {
             std::cout << "-------- Out of time during nextLoc (t: " << env->curr_timestep << ") at agent: " << agent->id << '\n';
@@ -59,11 +57,11 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 
     actions = std::vector<Action>(env->num_of_agents, Action::NA);
     std::vector<bool> visited(env->num_of_agents, false);
-    for (int i{0}; i < env->num_of_agents; ++i) {
-        if (actions[i] == Action::NA) {
-            actions[i] = getNextAction(actions, visited, agents[i]);
+    for (auto& a : agents) {
+        if (actions[a->id] == Action::NA) {
+            actions[a->id] = getNextAction(actions, visited, a);
         }
-        agents[i]->nextLoc = -1;
+        a->nextLoc = -1;
     }
 
     std::fill(prevReservations.begin(), prevReservations.end(), -1);
@@ -91,8 +89,8 @@ bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
 
         int otherAgent {prevReservations[neighbor.first]};
 
-        if (otherAgent != -1 && agents[otherAgent]->nextLoc == -1) {
-            if (getNextLoc(agents[otherAgent], a) == false) {
+        if (otherAgent != -1 && agentsById[otherAgent]->nextLoc == -1) {
+            if (getNextLoc(agentsById[otherAgent], a) == false) {
                 a->nextLoc = -1;
                 nextReservations[neighbor.first] = -1;
                 continue;
@@ -136,7 +134,7 @@ Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visi
 
         if (otherAgent != -1 && actions[otherAgent] == Action::NA && visited[otherAgent] == false) {
             visited[a->id] = true;
-            actions[otherAgent] = getNextAction(actions, visited, agents[otherAgent]);
+            actions[otherAgent] = getNextAction(actions, visited, agentsById[otherAgent]);
             action = nextReservations[a->nextLoc] == a->id ? Action::FW : Action::W;
         }
         else if (otherAgent != -1 && actions[otherAgent] == Action::NA && visited[otherAgent] == true) {
@@ -174,7 +172,10 @@ void PIBT::setGoalsParallel() {
 
     for (auto& agent : agents) {
         if (agent->isNewGoal()) {
-            boost::asio::post(pool, [agent]() { agent->setGoal(); });
+            boost::asio::post(pool, [this, agent]() {
+                agent->setGoal(); 
+                if (reduce.deadEndMap[agent->getLoc()] == 2) { agent->boostPriority(); }
+            });
         }
         else {
             auto neighbors = agent->getNeighborsWithUnknownDist();
@@ -201,6 +202,9 @@ void PIBT::setGoals(const TimePoint& endTime) {
 
         if (agent->isNewGoal()) {
             agent->setGoal();
+            if (reduce.deadEndMap[agent->getLoc()] == 2) {
+                agent->boostPriority();
+            }
         }
     }
 }
