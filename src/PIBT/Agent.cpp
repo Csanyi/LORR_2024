@@ -2,8 +2,11 @@
 #include "PIBT/Agent.h"
 
 void Agent::setGoal() {
+    int currLoc {env->curr_states[id].location};
+    int currDir {env->curr_states[id].orientation};
+
     if (env->goal_locations[id].empty()) {
-        goal = env->curr_states[id].location;
+        goal = currLoc;
     }
     else {
         goal = env->goal_locations[id].front().first;
@@ -12,7 +15,10 @@ void Agent::setGoal() {
     // auto start {std::chrono::steady_clock::now()};
 
     heuristic.reset();
-    heuristic.initialize(env->curr_states[id].location, env->curr_states[id].orientation, goal);
+    heuristic.initialize(currLoc, currDir, goal);
+
+    goalDist = heuristic.abstractDist(currLoc, currDir);
+    p = goalDist;
 
     // auto end {std::chrono::steady_clock::now()};
     // auto duration {std::chrono::duration_cast<std::chrono::milliseconds>(end - start)};
