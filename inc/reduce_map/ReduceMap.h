@@ -2,6 +2,7 @@
 #define REDUCEMAP_H
 
 #include <vector>
+#include <list>
 #include <unordered_map>
 #include "SharedEnv.h"
 
@@ -18,9 +19,15 @@ public:
     void printReducedMap() const;
     void printReducedMapWaypoints() const;
 
+    void hierarchyMapStart(int grid);
+
+    void divideIntoAreas(int distance);
+    void calculateDistanceBetweenAreas();
+
     void eraseDeadEnds();
 
     std::vector<int> deadEndMap;
+    std::vector<int> basePointMap;
 
 private:
     const int MAP_PRINT_WIDTH = 550;
@@ -29,6 +36,8 @@ private:
     SharedEnvironment* env;
     std::vector<int> reducedMap;
     std::vector<std::unordered_map<int,int>> reducedMapWaypoints;
+
+    std::vector<int> basePoints;
 
     void reduceMapUpdate();
 
@@ -42,6 +51,13 @@ private:
     int countReducedHorizontalNeighbours(int location) const;
 
     bool isDeadLoc(int location) const;
+
+    void markBasePoints(int distance);
+    bool markRandomPoint(int row, int col, int distance, int id);
+    void createAreasAroundBasePoints();
+
+    std::list<std::pair<int,int>> getNeighbors(int loc, int parent_loc) const;
+    bool validateMove(int loc1, int loc2) const;
 };
 
 #endif // REDUCEMAP_H

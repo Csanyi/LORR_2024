@@ -46,8 +46,7 @@ bool RRAstar::resume(int loc, int dir) {
             return true;
         }
 
-        for (const std::pair<int,int>& neighbor: getNeighbors(curr->location, curr->direction))
-        {
+        for (const std::pair<int,int>& neighbor: getNeighbors(curr->location, curr->direction)) {
             int i {neighbor.first * 4 + neighbor.second};
             if (closed.find(i) != closed.end()) {
                 continue;

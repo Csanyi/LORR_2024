@@ -1,4 +1,6 @@
 #include "reduce_map/ReduceMap.h"
+#include "reduce_map/DijkstraNode.h"
+#include <random>
 
 void ReduceMap::reduceMapStart()
 {
@@ -352,7 +354,7 @@ void ReduceMap::printReducedMapWaypoints() const
         }
         std::cout << temp << '\n';
     }
-    std::cout << "Waypoint count: " << cnt << '\n';
+    // std::cout << "Waypoint count: " << cnt << '\n';
     std::cout << "\n\n";
 }
 
@@ -370,12 +372,12 @@ void ReduceMap::eraseDeadEnds() {
                 deadEndMap[i] = 2;
                 changed = true;
                 ++cnt;
-                std::cout << '(' << i / env->cols << ';' << i % env->cols << ")\n"; 
+                // std::cout << '(' << i / env->cols << ';' << i % env->cols << ")\n"; 
             }
         }
     }
 
-    std::cout << "erase cnt: " << cnt << '\n';
+    // std::cout << "erase cnt: " << cnt << '\n';
 }
 
 bool ReduceMap::isDeadLoc(int location) const {
@@ -414,4 +416,209 @@ bool ReduceMap::isDeadLoc(int location) const {
     else { ++cnt1; }
 
     return cnt1 == 3 || (cnt1 == 2 && cnt2 == 1);
+}
+
+void ReduceMap::hierarchyMapStart(int grid) {
+    basePointMap.resize(env->map.size(), 0);
+
+    int cnt = 0;
+
+    //Rows from left to right
+    int gap_start = -1;
+    for(int x = grid; x < env->rows; x += grid) {
+        gap_start = -1;
+        for(int y = 0; y < env->cols; ++y) {
+            int loc = x * env->cols + y;
+            // if we are in a gap and we reach the end of the row then put an exit 
+            if (gap_start >= 0 && y == env->cols - 1) {
+                basePointMap[gap_start + (loc - gap_start) / 2] = 2;
+                gap_start = -1;
+                ++cnt;
+            }
+            // if we are in a gap and we reach a grid line then put an exit 
+            // if (gap_start >= 0 && y % grid == 0) {
+            //     gridMap[gap_start + (loc - gap_start) / 2] = 2;
+            //     gap_start = -1;
+            // }
+            // if we are in a gap and we reach a wall then put an exit 
+            else if (gap_start >= 0 && env->map[loc] == 1) {
+                basePointMap[gap_start + (loc - gap_start) / 2] = 2;
+                gap_start = -1;
+                ++cnt;
+            }
+            // if we are not in a gap and we reach a gap then start a gap 
+            else if (gap_start < 0 && env->map[loc] == 0) {
+                gap_start = loc;
+            }
+        }
+    }
+    //Cols from top to bottom
+    for(int y = grid; y < env->cols; y += grid) {
+        gap_start = -1;
+        for(int x = 0; x < env->rows; ++x) {
+            int loc = x * env->cols + y;
+            // if we are in a gap and we reach the end of the column then put an exit 
+            if (gap_start >=0 && x == env->rows - 1) {
+                basePointMap[(gap_start + (x - gap_start) / 2) * env->cols + y] = 2;
+                gap_start = -1;
+                ++cnt;
+            }
+            // if we are in a gap and we reach a grid line then put an exit 
+            // if (gap_start >= 0 && x % grid == 0) {
+            //     gridMap[(gap_start + (x - gap_start) / 2) * env->cols + y] = 2;
+            //     gap_start = -1;
+            // }
+            // if we are in a gap and we reach a wall then put an exit 
+            else if (gap_start >= 0 && env->map[loc] == 1) {
+                basePointMap[(gap_start + (x - gap_start) / 2) * env->cols + y] = 2;
+                gap_start = -1;
+                ++cnt;
+            }
+            // if we are not in a gap and we reach a gap then start a gap 
+            else if (gap_start < 0 && env->map[loc] == 0) {
+                gap_start = x;
+            }
+        }
+    }
+
+    std::cout << "Base point cnt: " << cnt << '\n';
+}
+
+void ReduceMap::divideIntoAreas(int distance) {
+    markBasePoints(distance);
+    createAreasAroundBasePoints();
+}
+
+void ReduceMap::markBasePoints(int distance) {
+    basePointMap.resize(env->map.size(), 0);
+    int id {1};
+
+    for (int i {distance / 2}; i < env->rows; i += distance) {
+        for (int j {distance / 2}; j < env->cols; j += distance) {
+            if (markRandomPoint(i, j, distance / 3, id)) { ++id; }
+        }
+    }
+
+    std::cout << "Base point cnt: " << id - 1 << '\n';
+}
+
+bool ReduceMap::markRandomPoint(int row, int col, int distance, int id) {
+    std::vector<int> candidates, out;
+
+    for (int i {max(row - distance, 0)}; i < min(row + distance, env->rows); ++i) {
+        for (int j {max(col - distance, 0)}; j < min(col + distance, env->cols); ++j) {
+            int loc {i * env->cols + j};
+            if (env->map[loc] == 0) {
+                candidates.push_back(loc);
+            }
+        }
+    }
+
+    if (!candidates.empty()) {
+        std::sample(candidates.begin(), candidates.end(), std::back_inserter(out), 1, std::mt19937{std::random_device{}()});
+        basePointMap[out[0]] = id;
+        basePoints.push_back(out[0]);
+        return true;
+    }
+
+    return false;
+}
+
+void ReduceMap::createAreasAroundBasePoints() {
+    std::vector<std::priority_queue<DijkstraNode*, std::vector<DijkstraNode*>, DijkstraNode::cmp>> open(basePoints.size());
+    std::vector<std::unordered_map<int, DijkstraNode*>> closed(basePoints.size());;
+    std::vector<std::unordered_map<int, DijkstraNode*>> allNodes(basePoints.size());;
+
+    for (int i {0}; i < basePoints.size(); ++i) {
+        DijkstraNode* s = new DijkstraNode(basePoints[i], -1, 0);
+        open[i].push(s);
+        allNodes[i][s->location] = s;
+    }
+
+    bool running {true};
+    while (running) {
+        running = false;
+        for (int i {0}; i < basePoints.size(); ++i) {
+            if (open[i].empty()) { continue; }
+
+            running = true;
+            DijkstraNode* curr {nullptr};
+            do {
+                curr = open[i].top();
+                open[i].pop();
+                closed[i][curr->location] = curr;
+
+                for (const auto& neighbor: getNeighbors(curr->location, curr->parent_location)) {
+                    if (closed[i].find(neighbor.first) != closed[i].end()) { continue; }
+                    if (basePointMap[neighbor.first] > 0) { continue; }
+
+                    if (allNodes[i].find(neighbor.first) != allNodes[i].end()) {
+                        DijkstraNode* old = allNodes[i][neighbor.first];
+                        if (curr->g + neighbor.second < old->g) {
+                            old->g = curr->g + neighbor.second;
+                            old->parent_location = curr->location;
+                        }
+                    } 
+                    else {
+                        DijkstraNode* nextNode = new DijkstraNode(neighbor.first, curr->location, curr->g + neighbor.second);
+                        open[i].push(nextNode);
+                        allNodes[i][nextNode->location] = nextNode;
+                    }
+                }
+            } while (basePointMap[curr->location] > 0 && !open[i].empty());
+
+            if (basePointMap[curr->location] == 0) {
+                basePointMap[curr->location] = i + 1; // i + 1 == basePoint id
+            }
+        }
+    }
+    
+    for (auto& i : allNodes) {
+        for (auto& n : i) {
+            delete n.second;
+        }
+    }
+}
+
+std::list<std::pair<int,int>> ReduceMap::getNeighbors(int loc, int parent_loc) const {
+    std::list<std::pair<int,int>> neighbors;
+    int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
+
+    for (int candidate : candidates) {
+        if (validateMove(candidate, loc)) {
+            int cost;
+            if (candidate == parent_loc){
+                cost = 3;
+            } else if (candidate == loc + (loc - parent_loc) || parent_loc == -1) {
+                cost = 1;
+            } else {
+                cost = 2;
+            }
+
+            neighbors.emplace_back(std::make_pair(candidate, cost));
+        }
+    }
+
+    return neighbors;
+}
+
+bool ReduceMap::validateMove(int loc1, int loc2) const
+{
+    int loc_x {loc1 / env->cols};
+    int loc_y {loc1 % env->cols};
+    if (env->map[loc1] == 1 || loc_x >= env->rows || loc_y >= env->cols || loc_x < 0 || loc_y < 0) {
+        return false;
+    }
+
+    int loc2_x {loc2 / env->cols};
+    int loc2_y {loc2 % env->cols};
+    if (abs(loc_x - loc2_x) + abs(loc_y - loc2_y) > 1) {
+        return false;
+    }
+
+    return true;
+}
+
+void ReduceMap::calculateDistanceBetweenAreas() {
+    
 }

@@ -20,6 +20,13 @@ void PIBT::initialize() {
     }
 
     reduce.eraseDeadEnds();
+
+    reduce.divideIntoAreas(6);
+
+    int count = std::count_if(reduce.basePointMap.begin(), reduce.basePointMap.end(), [](int x) { return x == 0; });
+    int count2 = std::count_if(env->map.begin(), env->map.end(), [](int x) { return x == 1; });
+
+    std::cout << "BasePointMap: " << count << "; EnvMap: " << count2 << '\n';
 }
 
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
