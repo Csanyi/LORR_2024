@@ -22,8 +22,9 @@ void PIBT::initialize() {
     reduce.eraseDeadEnds();
 
     reduce.divideIntoAreas(6);
+    reduce.calculateDistanceBetweenAreas();
 
-    int count = std::count_if(reduce.basePointMap.begin(), reduce.basePointMap.end(), [](int x) { return x == 0; });
+    int count = std::count_if(reduce.basePointMap.begin(), reduce.basePointMap.end(), [](int x) { return x == ReduceMap::EMPTY; });
     int count2 = std::count_if(env->map.begin(), env->map.end(), [](int x) { return x == 1; });
 
     std::cout << "BasePointMap: " << count << "; EnvMap: " << count2 << '\n';
@@ -35,7 +36,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 
     for (auto& agent : agents) {
         prevReservations[agent->getLoc()] = agent->id;
-        if (reduce.deadEndMap[agent->getLoc()] != 2) { agent->resetPriority(); }
+        if (reduce.deadEndMap[agent->getLoc()] != ReduceMap::DEADLOC) { agent->resetPriority(); }
     }
 
     if (env->map.size() > 9999) {
@@ -89,7 +90,7 @@ bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
 
         if (b != nullptr && prevReservations[neighbor.first] == b->id) { continue; }
 
-        if (b != nullptr && reduce.deadEndMap[neighbor.first] == 2) { continue; }
+        if (b != nullptr && reduce.deadEndMap[neighbor.first] == ReduceMap::DEADLOC) { continue; }
 
         a->nextLoc = neighbor.first;
         nextReservations[neighbor.first] = a->id;
@@ -181,7 +182,7 @@ void PIBT::setGoalsParallel() {
         if (agent->isNewGoal()) {
             boost::asio::post(pool, [this, agent]() {
                 agent->setGoal(); 
-                if (reduce.deadEndMap[agent->getLoc()] == 2) { agent->boostPriority(); }
+                if (reduce.deadEndMap[agent->getLoc()] == ReduceMap::DEADLOC) { agent->boostPriority(); }
             });
         }
         else {
@@ -209,7 +210,7 @@ void PIBT::setGoals(const TimePoint& endTime) {
 
         if (agent->isNewGoal()) {
             agent->setGoal();
-            if (reduce.deadEndMap[agent->getLoc()] == 2) {
+            if (reduce.deadEndMap[agent->getLoc()] == ReduceMap::DEADLOC) {
                 agent->boostPriority();
             }
         }

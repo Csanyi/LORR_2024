@@ -10,6 +10,13 @@ class ReduceMap {
 public:
     ReduceMap(SharedEnvironment* _env): env(_env) { }
 
+    static constexpr int EMPTY  { -1 };
+    static constexpr int DEADLOC { 2 };
+
+    std::vector<int> deadEndMap;
+    std::vector<int> basePointMap;
+    std::vector<std::vector<std::pair<int,int>>> basePointDistances;
+
     void reduceMapStart();
     bool reduceMap(bool keepSalient);
 
@@ -26,12 +33,9 @@ public:
 
     void eraseDeadEnds();
 
-    std::vector<int> deadEndMap;
-    std::vector<int> basePointMap;
-
 private:
-    const int MAP_PRINT_WIDTH = 550;
-    const int MAP_PRINT_OFFSET = 0;
+    const int MAP_PRINT_WIDTH { 550 };
+    const int MAP_PRINT_OFFSET { 0 };
 
     SharedEnvironment* env;
     std::vector<int> reducedMap;
@@ -55,6 +59,7 @@ private:
     void markBasePoints(int distance);
     bool markRandomPoint(int row, int col, int distance, int id);
     void createAreasAroundBasePoints();
+    void dijkstra(int startLoc, int id);
 
     std::list<std::pair<int,int>> getNeighbors(int loc, int parent_loc) const;
     bool validateMove(int loc1, int loc2) const;

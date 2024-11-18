@@ -1,6 +1,8 @@
 #include "reduce_map/ReduceMap.h"
 #include "reduce_map/DijkstraNode.h"
 #include <random>
+#include <boost/asio.hpp>
+#include <boost/thread.hpp>
 
 void ReduceMap::reduceMapStart()
 {
@@ -315,13 +317,13 @@ void ReduceMap::printReducedMap() const
         for(int y = MAP_PRINT_OFFSET; y < min(env->cols, MAP_PRINT_WIDTH+MAP_PRINT_OFFSET); y++)
         {
             int loc = x * env->cols + y;
-            if(reducedMap[loc] == 0)
+            if(basePointMap[loc] == EMPTY)
             {
                 temp += env->map[loc] == 1 ? blackBox : " ";
             }
             else 
             {
-                temp += std::to_string(reducedMap[loc]);
+                temp += std::to_string(basePointMap[loc]);
             }
         }
         std::cout << temp << '\n';
@@ -369,7 +371,7 @@ void ReduceMap::eraseDeadEnds() {
             if (deadEndMap[i] > 0) { continue; }
 
             if (isDeadLoc(i)) {
-                deadEndMap[i] = 2;
+                deadEndMap[i] = DEADLOC;
                 changed = true;
                 ++cnt;
                 // std::cout << '(' << i / env->cols << ';' << i % env->cols << ")\n"; 
@@ -390,28 +392,28 @@ bool ReduceMap::isDeadLoc(int location) const {
     // right
     if (y + 1 < env->cols) {
         if (deadEndMap[location + 1] == 1) { ++cnt1; }
-        else if (deadEndMap[location + 1] == 2) { ++cnt2; }
+        else if (deadEndMap[location + 1] == DEADLOC) { ++cnt2; }
     }
     else { ++cnt1; }
 
     // left
     if (y - 1 >= 0) {
         if (deadEndMap[location - 1] == 1) { ++cnt1; }
-        else if (deadEndMap[location - 1] == 2) { ++cnt2; }
+        else if (deadEndMap[location - 1] == DEADLOC) { ++cnt2; }
     } 
     else { ++cnt1; }
 
     // top
     if (x - 1 >= 0) {
         if (deadEndMap[location - env->cols] == 1) { ++cnt1; }
-        else if (deadEndMap[location - env->cols] == 2) { ++cnt2; }
+        else if (deadEndMap[location - env->cols] == DEADLOC) { ++cnt2; }
     } 
     else { ++cnt1; }
 
     // bottom
     if (x + 1 < env->rows) {
         if (deadEndMap[location + env->cols] == 1) { ++cnt1; }
-        else if (deadEndMap[location + env->cols] == 2) { ++cnt2; }
+        else if (deadEndMap[location + env->cols] == DEADLOC) { ++cnt2; }
     } 
     else { ++cnt1; }
 
@@ -490,8 +492,8 @@ void ReduceMap::divideIntoAreas(int distance) {
 }
 
 void ReduceMap::markBasePoints(int distance) {
-    basePointMap.resize(env->map.size(), 0);
-    int id {1};
+    basePointMap.resize(env->map.size(), EMPTY);
+    int id {0};
 
     for (int i {distance / 2}; i < env->rows; i += distance) {
         for (int j {distance / 2}; j < env->cols; j += distance) {
@@ -499,7 +501,7 @@ void ReduceMap::markBasePoints(int distance) {
         }
     }
 
-    std::cout << "Base point cnt: " << id - 1 << '\n';
+    std::cout << "Base point cnt: " << id << '\n';
 }
 
 bool ReduceMap::markRandomPoint(int row, int col, int distance, int id) {
@@ -526,11 +528,11 @@ bool ReduceMap::markRandomPoint(int row, int col, int distance, int id) {
 
 void ReduceMap::createAreasAroundBasePoints() {
     std::vector<std::priority_queue<DijkstraNode*, std::vector<DijkstraNode*>, DijkstraNode::cmp>> open(basePoints.size());
-    std::vector<std::unordered_map<int, DijkstraNode*>> closed(basePoints.size());;
-    std::vector<std::unordered_map<int, DijkstraNode*>> allNodes(basePoints.size());;
+    std::vector<std::unordered_map<int, DijkstraNode*>> closed(basePoints.size());
+    std::vector<std::unordered_map<int, DijkstraNode*>> allNodes(basePoints.size());
 
     for (int i {0}; i < basePoints.size(); ++i) {
-        DijkstraNode* s = new DijkstraNode(basePoints[i], -1, 0);
+        DijkstraNode* s = new DijkstraNode(basePoints[i], EMPTY, 0);
         open[i].push(s);
         allNodes[i][s->location] = s;
     }
@@ -548,27 +550,26 @@ void ReduceMap::createAreasAroundBasePoints() {
                 open[i].pop();
                 closed[i][curr->location] = curr;
 
-                for (const auto& neighbor: getNeighbors(curr->location, curr->parent_location)) {
+                for (const auto& neighbor: getNeighbors(curr->location, curr->parentLocation)) {
                     if (closed[i].find(neighbor.first) != closed[i].end()) { continue; }
-                    if (basePointMap[neighbor.first] > 0) { continue; }
 
                     if (allNodes[i].find(neighbor.first) != allNodes[i].end()) {
                         DijkstraNode* old = allNodes[i][neighbor.first];
                         if (curr->g + neighbor.second < old->g) {
                             old->g = curr->g + neighbor.second;
-                            old->parent_location = curr->location;
+                            old->parentLocation = curr->location;
                         }
                     } 
-                    else {
+                    else if (basePointMap[neighbor.first] == EMPTY) {
                         DijkstraNode* nextNode = new DijkstraNode(neighbor.first, curr->location, curr->g + neighbor.second);
                         open[i].push(nextNode);
                         allNodes[i][nextNode->location] = nextNode;
                     }
                 }
-            } while (basePointMap[curr->location] > 0 && !open[i].empty());
+            } while (basePointMap[curr->location] != EMPTY && !open[i].empty());
 
-            if (basePointMap[curr->location] == 0) {
-                basePointMap[curr->location] = i + 1; // i + 1 == basePoint id
+            if (basePointMap[curr->location] == EMPTY) {
+                basePointMap[curr->location] = i; // i == basePoint id
             }
         }
     }
@@ -585,11 +586,10 @@ std::list<std::pair<int,int>> ReduceMap::getNeighbors(int loc, int parent_loc) c
     int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
 
     for (int candidate : candidates) {
+        if (candidate == parent_loc) { continue; }
         if (validateMove(candidate, loc)) {
             int cost;
-            if (candidate == parent_loc){
-                cost = 3;
-            } else if (candidate == loc + (loc - parent_loc) || parent_loc == -1) {
+            if (candidate == loc + (loc - parent_loc) || parent_loc == EMPTY) {
                 cost = 1;
             } else {
                 cost = 2;
@@ -620,5 +620,70 @@ bool ReduceMap::validateMove(int loc1, int loc2) const
 }
 
 void ReduceMap::calculateDistanceBetweenAreas() {
-    
+    basePointDistances.resize(basePoints.size(), std::vector<std::pair<int,int>>(basePoints.size(), {EMPTY, EMPTY}));
+    boost::asio::thread_pool pool(boost::thread::hardware_concurrency());
+
+    for (int i {0}; i < basePoints.size(); ++i) {
+        int start {basePoints[i]};
+        boost::asio::post(pool, [this, start, i]() {
+            dijkstra(start, i);
+        });
+    }
+
+    pool.join();
+}
+
+void ReduceMap::dijkstra(int startLoc, int id) {
+    std::priority_queue<DijkstraNode*, std::vector<DijkstraNode*>, DijkstraNode::cmp> open;
+    std::unordered_map<int, DijkstraNode*> closed;
+    std::unordered_map<int, DijkstraNode*> allNodes;
+
+    DijkstraNode* s = new DijkstraNode(startLoc, EMPTY, 0, id);
+    open.push(s);
+    allNodes[s->location] = s;
+
+    while (!open.empty()) {
+        DijkstraNode* curr = open.top();
+        open.pop();
+        closed[curr->location] = curr;
+
+        int nextArea;
+        if (curr->nextArea != id) {
+            nextArea = curr->nextArea;
+        } 
+        else {
+            nextArea = basePointMap[curr->location];
+        }
+
+        for (const auto& neighbor: getNeighbors(curr->location, curr->parentLocation)) {
+            if (closed.find(neighbor.first) != closed.end()) {
+                continue;
+            }
+
+            if (allNodes.find(neighbor.first) != allNodes.end()) {
+                DijkstraNode* old = allNodes[neighbor.first];
+                if (curr->g + neighbor.second < old->g) {
+                    old->g = curr->g + neighbor.second;
+                    old->parentLocation = curr->location;
+                    old->nextArea = nextArea;
+                }
+            } 
+            else {
+                DijkstraNode* nextNode = new DijkstraNode(neighbor.first, curr->location, curr->g + neighbor.second, nextArea);
+                open.push(nextNode);
+                allNodes[nextNode->location] = nextNode;
+            }
+        }
+    }
+
+    for (int i {0}; i < basePoints.size(); ++i) {
+        int loc {basePoints[i]};
+        if (closed.find(loc) != closed.end()) {
+            basePointDistances[id][i] = { closed[loc]->g, closed[loc]->nextArea };
+        }
+    }
+
+    for (auto& n : allNodes) {
+        delete n.second;
+    }
 }
