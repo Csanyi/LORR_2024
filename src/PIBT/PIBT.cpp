@@ -10,24 +10,25 @@ void PIBT::initialize() {
     prevReservations.resize(env->map.size(), -1);
     nextReservations.resize(env->map.size(), -1);
 
-    agents.reserve(env->num_of_agents);  
-    agentsById.reserve(env->num_of_agents);    
-  
-    for (int i {0}; i < env->num_of_agents; ++i) {
-        Agent* agent = new Agent(i, env);
-        agents.push_back(agent);
-        agentsById.push_back(agent);
-    }
-
     reduce.eraseDeadEnds();
 
     reduce.divideIntoAreas(6);
     reduce.calculateDistanceBetweenAreas();
+    reduce.printReducedMap();
 
-    int count = std::count_if(reduce.basePointMap.begin(), reduce.basePointMap.end(), [](int x) { return x == ReduceMap::EMPTY; });
+    int count = std::count_if(reduce.areaMap.begin(), reduce.areaMap.end(), [](int x) { return x == ReduceMap::EMPTY; });
     int count2 = std::count_if(env->map.begin(), env->map.end(), [](int x) { return x == 1; });
 
     std::cout << "BasePointMap: " << count << "; EnvMap: " << count2 << '\n';
+
+    agents.reserve(env->num_of_agents);  
+    agentsById.reserve(env->num_of_agents);    
+  
+    for (int i {0}; i < env->num_of_agents; ++i) {
+        Agent2* agent = new Agent2(i, env, reduce);
+        agents.push_back(agent);
+        agentsById.push_back(agent);
+    }
 }
 
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
@@ -39,14 +40,15 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
         if (reduce.deadEndMap[agent->getLoc()] != ReduceMap::DEADLOC) { agent->resetPriority(); }
     }
 
-    if (env->map.size() > 9999) {
-        setGoalsParallel(); 
-    } 
-    else {
+    // if (env->map.size() > 9999) {
+    //     setGoalsParallel(); 
+    // } 
+    // else 
+    {
         setGoals(endTime);
     }
 
-    std::sort(agents.begin(), agents.end(), [](const Agent* a, const Agent* b) {
+    std::sort(agents.begin(), agents.end(), [](const Agent2* a, const Agent2* b) {
         if (a->p == b->p) {
             return a->id < b->id;
         }
@@ -76,7 +78,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
     std::fill(nextReservations.begin(), nextReservations.end(), -1);
 }
 
-bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
+bool PIBT::getNextLoc(Agent2* const a, const Agent2* const b) {
     auto neighbors = a->getNeighborsWithDist();
     std::sort(neighbors.begin(), neighbors.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
         if (a.second == b.second) {
@@ -111,7 +113,7 @@ bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
     return false;
 }
 
-Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent* const a) {
+Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent2* const a) {
     if (a->nextLoc == -1) { return Action::W; }
     Action action;
     int dir;

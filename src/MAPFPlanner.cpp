@@ -14,6 +14,7 @@ void MAPFPlanner::initialize(int preprocess_time_limit) {
 }
 
 void MAPFPlanner::plan(int time_limit, vector<Action>& actions) {
+    static int cnt {0};
     auto start {std::chrono::steady_clock::now()};
 
     auto limit {time_limit - std::chrono::duration_cast<milliseconds>(std::chrono::steady_clock::now()
@@ -25,4 +26,9 @@ void MAPFPlanner::plan(int time_limit, vector<Action>& actions) {
     auto duration {std::chrono::duration_cast<std::chrono::milliseconds>(end - start)};
 
     std::cout << "******** Planning at timestep " << env->curr_timestep << " took " << duration.count() << " ms ********\n";
+    cnt += duration.count();
+
+    if (env->curr_timestep == 4999) {
+        std::cout << "******** Average planning time " << cnt / 5000.f << " ms ********\n";
+    }
 }

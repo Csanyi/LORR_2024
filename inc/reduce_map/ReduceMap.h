@@ -4,6 +4,7 @@
 #include <vector>
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include "SharedEnv.h"
 
 class ReduceMap {
@@ -14,8 +15,10 @@ public:
     static constexpr int DEADLOC { 2 };
 
     std::vector<int> deadEndMap;
-    std::vector<int> basePointMap;
+    std::vector<int> basePoints;
+    std::vector<int> areaMap;
     std::vector<std::vector<std::pair<int,int>>> basePointDistances;
+    std::unordered_map<int, std::unordered_set<int>> areaLocations;
 
     void reduceMapStart();
     bool reduceMap(bool keepSalient);
@@ -40,8 +43,6 @@ private:
     SharedEnvironment* env;
     std::vector<int> reducedMap;
     std::vector<std::unordered_map<int,int>> reducedMapWaypoints;
-
-    std::vector<int> basePoints;
 
     void reduceMapUpdate();
 

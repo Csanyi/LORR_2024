@@ -4,8 +4,10 @@
 #include <vector>
 #include <queue>
 #include <unordered_map>
+#include <unordered_set>
 #include <list>
 #include "RRA_star/RRAstarNode.h"
+#include "reduce_map/ReduceMap.h"
 #include "SharedEnv.h"
 
 class RRAstar {
@@ -14,6 +16,8 @@ public:
     ~RRAstar();
 
     void initialize(int start, int starDir, int goal);
+    void initialize(int start, int starDir, int areaId, const ReduceMap& reduce);
+
     int abstractDist(int loc, int dir);
     void reset();
     bool isDistKnown(int loc, int dir) const;

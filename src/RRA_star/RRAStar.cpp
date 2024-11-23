@@ -21,6 +21,27 @@ void RRAstar::initialize(int start, int startDir, int goal) {
     }
 }
 
+void RRAstar::initialize(int start, int startDir, int areaId, const ReduceMap& reduce) {
+    this->start = start;
+    for (int goal : reduce.areaLocations.at(areaId)) {
+        for (const std::pair<int,int>& neighbor : getGoalNeighbors(goal)) {
+            if (reduce.areaMap[neighbor.first] == areaId) { continue; }
+
+            RRAstarNode* n = new RRAstarNode(neighbor.first, neighbor.second, 1, getManhattanDist(neighbor.first, start));
+            open.push(n);
+            allNodes[neighbor.first * 4 + neighbor.second] = n;
+        }
+
+        for (int i {0}; i < 4; ++i) {
+            RRAstarNode* s = new RRAstarNode(goal, i, 0, getManhattanDist(goal, start));
+            closed[goal * 4 + i] = s;
+            allNodes[goal * 4 + i] = s;
+        }
+    }
+
+    resume(start, startDir);
+}
+
 int RRAstar::abstractDist(int loc, int dir) {
     int i {loc * 4 + dir};
     auto it = closed.find(i);

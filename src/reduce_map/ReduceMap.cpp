@@ -317,13 +317,13 @@ void ReduceMap::printReducedMap() const
         for(int y = MAP_PRINT_OFFSET; y < min(env->cols, MAP_PRINT_WIDTH+MAP_PRINT_OFFSET); y++)
         {
             int loc = x * env->cols + y;
-            if(basePointMap[loc] == EMPTY)
+            if(areaMap[loc] == EMPTY)
             {
                 temp += env->map[loc] == 1 ? blackBox : " ";
             }
             else 
             {
-                temp += std::to_string(basePointMap[loc]);
+                temp += std::to_string(areaMap[loc]);
             }
         }
         std::cout << temp << '\n';
@@ -421,7 +421,7 @@ bool ReduceMap::isDeadLoc(int location) const {
 }
 
 void ReduceMap::hierarchyMapStart(int grid) {
-    basePointMap.resize(env->map.size(), 0);
+    areaMap.resize(env->map.size(), 0);
 
     int cnt = 0;
 
@@ -433,7 +433,7 @@ void ReduceMap::hierarchyMapStart(int grid) {
             int loc = x * env->cols + y;
             // if we are in a gap and we reach the end of the row then put an exit 
             if (gap_start >= 0 && y == env->cols - 1) {
-                basePointMap[gap_start + (loc - gap_start) / 2] = 2;
+                areaMap[gap_start + (loc - gap_start) / 2] = 2;
                 gap_start = -1;
                 ++cnt;
             }
@@ -444,7 +444,7 @@ void ReduceMap::hierarchyMapStart(int grid) {
             // }
             // if we are in a gap and we reach a wall then put an exit 
             else if (gap_start >= 0 && env->map[loc] == 1) {
-                basePointMap[gap_start + (loc - gap_start) / 2] = 2;
+                areaMap[gap_start + (loc - gap_start) / 2] = 2;
                 gap_start = -1;
                 ++cnt;
             }
@@ -461,7 +461,7 @@ void ReduceMap::hierarchyMapStart(int grid) {
             int loc = x * env->cols + y;
             // if we are in a gap and we reach the end of the column then put an exit 
             if (gap_start >=0 && x == env->rows - 1) {
-                basePointMap[(gap_start + (x - gap_start) / 2) * env->cols + y] = 2;
+                areaMap[(gap_start + (x - gap_start) / 2) * env->cols + y] = 2;
                 gap_start = -1;
                 ++cnt;
             }
@@ -472,7 +472,7 @@ void ReduceMap::hierarchyMapStart(int grid) {
             // }
             // if we are in a gap and we reach a wall then put an exit 
             else if (gap_start >= 0 && env->map[loc] == 1) {
-                basePointMap[(gap_start + (x - gap_start) / 2) * env->cols + y] = 2;
+                areaMap[(gap_start + (x - gap_start) / 2) * env->cols + y] = 2;
                 gap_start = -1;
                 ++cnt;
             }
@@ -492,7 +492,7 @@ void ReduceMap::divideIntoAreas(int distance) {
 }
 
 void ReduceMap::markBasePoints(int distance) {
-    basePointMap.resize(env->map.size(), EMPTY);
+    areaMap.resize(env->map.size(), EMPTY);
     int id {0};
 
     for (int i {distance / 2}; i < env->rows; i += distance) {
@@ -518,7 +518,6 @@ bool ReduceMap::markRandomPoint(int row, int col, int distance, int id) {
 
     if (!candidates.empty()) {
         std::sample(candidates.begin(), candidates.end(), std::back_inserter(out), 1, std::mt19937{std::random_device{}()});
-        basePointMap[out[0]] = id;
         basePoints.push_back(out[0]);
         return true;
     }
@@ -560,16 +559,17 @@ void ReduceMap::createAreasAroundBasePoints() {
                             old->parentLocation = curr->location;
                         }
                     } 
-                    else if (basePointMap[neighbor.first] == EMPTY) {
+                    else if (areaMap[neighbor.first] == EMPTY) {
                         DijkstraNode* nextNode = new DijkstraNode(neighbor.first, curr->location, curr->g + neighbor.second);
                         open[i].push(nextNode);
                         allNodes[i][nextNode->location] = nextNode;
                     }
                 }
-            } while (basePointMap[curr->location] != EMPTY && !open[i].empty());
+            } while (areaMap[curr->location] != EMPTY && !open[i].empty());
 
-            if (basePointMap[curr->location] == EMPTY) {
-                basePointMap[curr->location] = i; // i == basePoint id
+            if (areaMap[curr->location] == EMPTY) {
+                areaMap[curr->location] = i; // i == basePoint id
+                areaLocations[i].insert(curr->location);
             }
         }
     }
@@ -652,7 +652,7 @@ void ReduceMap::dijkstra(int startLoc, int id) {
             nextArea = curr->nextArea;
         } 
         else {
-            nextArea = basePointMap[curr->location];
+            nextArea = areaMap[curr->location];
         }
 
         for (const auto& neighbor: getNeighbors(curr->location, curr->parentLocation)) {
