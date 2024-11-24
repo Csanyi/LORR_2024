@@ -6,10 +6,10 @@ public:
     int location;
     int parentLocation;
     int g;
-    int nextArea;
+    DijkstraNode* parent;
 
-    DijkstraNode(int _location, int _parentLoc, int _g, int _nextArea = -1): 
-        location(_location), parentLocation(_parentLoc), g(_g), nextArea(_nextArea) { }
+    DijkstraNode(int _location, int _parentLoc, int _g, DijkstraNode* _parent = nullptr): 
+        location(_location), parentLocation(_parentLoc), g(_g), parent(_parent) { }
 
     struct cmp {
         bool operator() (const DijkstraNode* const a, const DijkstraNode* const b) const {

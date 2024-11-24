@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "SharedEnv.h"
+#include "reduce_map/DijkstraNode.h"
 
 class ReduceMap {
 public:
@@ -17,7 +18,7 @@ public:
     std::vector<int> deadEndMap;
     std::vector<int> basePoints;
     std::vector<int> areaMap;
-    std::vector<std::vector<std::pair<int,int>>> basePointDistances;
+    std::vector<std::vector<std::pair<int,std::list<int>>>> basePointDistances;
     std::unordered_map<int, std::unordered_set<int>> areaLocations;
 
     void reduceMapStart();
@@ -61,6 +62,7 @@ private:
     bool markRandomPoint(int row, int col, int distance, int id);
     void createAreasAroundBasePoints();
     void dijkstra(int startLoc, int id);
+    void backTrack(int from, int to, DijkstraNode* current);
 
     std::list<std::pair<int,int>> getNeighbors(int loc, int parent_loc) const;
     bool validateMove(int loc1, int loc2) const;

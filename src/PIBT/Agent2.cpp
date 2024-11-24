@@ -11,6 +11,8 @@ void Agent2::setGoal() {
 
     int areaFrom {reduce.areaMap[getLoc()]};
     int areaTo {reduce.areaMap[goal]};
+    nextArea = reduce.basePointDistances[areaFrom][areaTo].second.cbegin();
+    endArea = reduce.basePointDistances[areaFrom][areaTo].second.cend();
 
     initializeHeuristic(areaFrom, areaTo);
 
@@ -21,7 +23,7 @@ void Agent2::setGoal() {
 int Agent2::getDist(int loc, int dir) {
     int areaFrom {reduce.areaMap[getLoc()]};
 
-    if (areaFrom == nextArea && nextArea != -1) {
+    if (nextArea != endArea && areaFrom == *nextArea) {
         int areaTo {reduce.areaMap[goal]}; 
         initializeHeuristic(areaFrom, areaTo);
     } 
@@ -96,12 +98,12 @@ void Agent2::initializeHeuristic(int areaFrom, int areaTo) {
     heuristic.reset();
 
     if (areaFrom == areaTo) {
-        nextArea = -1;
+        nextArea = endArea;
         heuristic.initialize(getLoc(), getDir(), goal);
-    } 
+    }
     else {
-        nextArea = reduce.basePointDistances[areaFrom][areaTo].second;
-        heuristic.initialize(getLoc(), getDir(), nextArea, reduce);
-        //heuristic.initialize(getLoc(), getDir(), reduce.basePoints[nextArea]);
+        ++nextArea;
+        heuristic.initialize(getLoc(), getDir(), *nextArea, reduce);
+        // heuristic.initialize(getLoc(), getDir(), reduce.basePoints[*nextArea]);
     }
 }

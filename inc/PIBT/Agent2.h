@@ -30,7 +30,8 @@ private:
     RRAstar heuristic;
     int goal {-1};
     int goalDist {-1};
-    int nextArea;
+    std::list<int>::const_iterator nextArea;
+    std::list<int>::const_iterator endArea;
 
     bool validateMove(int loc1, int loc2) const;
     void initializeHeuristic(int areaFrom, int areaTo);

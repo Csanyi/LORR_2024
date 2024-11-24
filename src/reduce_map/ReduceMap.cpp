@@ -1,5 +1,4 @@
 #include "reduce_map/ReduceMap.h"
-#include "reduce_map/DijkstraNode.h"
 #include <random>
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
@@ -620,7 +619,7 @@ bool ReduceMap::validateMove(int loc1, int loc2) const
 }
 
 void ReduceMap::calculateDistanceBetweenAreas() {
-    basePointDistances.resize(basePoints.size(), std::vector<std::pair<int,int>>(basePoints.size(), {EMPTY, EMPTY}));
+    basePointDistances.resize(basePoints.size(), std::vector<std::pair<int,std::list<int>>>(basePoints.size(), {EMPTY, {}}));
     boost::asio::thread_pool pool(boost::thread::hardware_concurrency());
 
     for (int i {0}; i < basePoints.size(); ++i) {
@@ -638,7 +637,7 @@ void ReduceMap::dijkstra(int startLoc, int id) {
     std::unordered_map<int, DijkstraNode*> closed;
     std::unordered_map<int, DijkstraNode*> allNodes;
 
-    DijkstraNode* s = new DijkstraNode(startLoc, EMPTY, 0, id);
+    DijkstraNode* s = new DijkstraNode(startLoc, EMPTY, 0, nullptr);
     open.push(s);
     allNodes[s->location] = s;
 
@@ -646,14 +645,6 @@ void ReduceMap::dijkstra(int startLoc, int id) {
         DijkstraNode* curr = open.top();
         open.pop();
         closed[curr->location] = curr;
-
-        int nextArea;
-        if (curr->nextArea != id) {
-            nextArea = curr->nextArea;
-        } 
-        else {
-            nextArea = areaMap[curr->location];
-        }
 
         for (const auto& neighbor: getNeighbors(curr->location, curr->parentLocation)) {
             if (closed.find(neighbor.first) != closed.end()) {
@@ -665,11 +656,11 @@ void ReduceMap::dijkstra(int startLoc, int id) {
                 if (curr->g + neighbor.second < old->g) {
                     old->g = curr->g + neighbor.second;
                     old->parentLocation = curr->location;
-                    old->nextArea = nextArea;
+                    old->parent = curr;
                 }
             } 
             else {
-                DijkstraNode* nextNode = new DijkstraNode(neighbor.first, curr->location, curr->g + neighbor.second, nextArea);
+                DijkstraNode* nextNode = new DijkstraNode(neighbor.first, curr->location, curr->g + neighbor.second, curr);
                 open.push(nextNode);
                 allNodes[nextNode->location] = nextNode;
             }
@@ -677,13 +668,43 @@ void ReduceMap::dijkstra(int startLoc, int id) {
     }
 
     for (int i {0}; i < basePoints.size(); ++i) {
-        int loc {basePoints[i]};
-        if (closed.find(loc) != closed.end()) {
-            basePointDistances[id][i] = { closed[loc]->g, closed[loc]->nextArea };
+        auto it {closed.find(basePoints[i])};
+        if (it != closed.end()) {
+            backTrack(id, i, it->second);
         }
     }
 
     for (auto& n : allNodes) {
         delete n.second;
+    }
+}
+
+void ReduceMap::backTrack(int from, int to, DijkstraNode* current) {
+    std::unordered_set<int> seen;
+    std::list<int>& route {basePointDistances[from][to].second};
+    route.push_front(to);
+    //seen.insert(to);
+    int areaId {to};
+
+    // keep >>first<< or last occurence ??
+
+    while (areaId != from) {
+        current = current->parent;
+        areaId = areaMap[current->location];
+
+        if (/*seen.find(areaId) == seen.end() &&*/ route.front() != areaId) {
+           route.push_front(areaId);
+            // seen.insert(areaId);
+        }
+    }
+
+    auto it {route.begin()};
+    while (it != route.end()) {
+        if (seen.find(*it) != seen.end()) {
+            it = route.erase(it);
+        } else {
+            seen.insert(*it);
+            ++it;
+        }
     }
 }

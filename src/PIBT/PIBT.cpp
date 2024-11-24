@@ -29,6 +29,15 @@ void PIBT::initialize() {
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
+
+    for (int i {0}; i < reduce.basePointDistances.size(); ++i) {
+        for (int j {0}; j < reduce.basePointDistances[i].size(); ++j) {
+            for (int x : reduce.basePointDistances[i][j].second) {
+                std::cout << x << " -> ";
+            }
+            std::cout << '\n';
+        }
+    } 
 }
 
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
