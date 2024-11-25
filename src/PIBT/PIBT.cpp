@@ -25,7 +25,7 @@ void PIBT::initialize() {
     agentsById.reserve(env->num_of_agents);    
   
     for (int i {0}; i < env->num_of_agents; ++i) {
-        Agent2* agent = new Agent2(i, env, reduce);
+        Agent2* agent = new Agent2(i, env, &reduce);
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
