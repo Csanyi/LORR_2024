@@ -535,6 +535,7 @@ void ReduceMap::createAreasAroundBasePoints() {
         allNodes[i][s->location] = s;
     }
 
+    int distance {0};
     bool running {true};
     while (running) {
         running = false;
@@ -542,9 +543,8 @@ void ReduceMap::createAreasAroundBasePoints() {
             if (open[i].empty()) { continue; }
 
             running = true;
-            DijkstraNode* curr {nullptr};
-            do {
-                curr = open[i].top();
+            DijkstraNode* curr {open[i].top()};
+            while (!open[i].empty() && curr->g == distance) {
                 open[i].pop();
                 closed[i][curr->location] = curr;
 
@@ -564,13 +564,19 @@ void ReduceMap::createAreasAroundBasePoints() {
                         allNodes[i][nextNode->location] = nextNode;
                     }
                 }
-            } while (areaMap[curr->location] != EMPTY && !open[i].empty());
 
-            if (areaMap[curr->location] == EMPTY) {
-                areaMap[curr->location] = i; // i == basePoint id
-                areaLocations[i].insert(curr->location);
+                if (areaMap[curr->location] == EMPTY) {
+                    areaMap[curr->location] = i; // i == basePoint id
+                    areaLocations[i].insert(curr->location);
+                }
+
+                if (!open[i].empty()) {
+                    curr = open[i].top();
+                }
             }
         }
+
+        ++distance;
     }
     
     for (auto& i : allNodes) {
