@@ -61,10 +61,6 @@ bool RRAstar::resume(int loc, int dir) {
         open.pop();
         closed[curr->location * 4 + curr->direction] = curr;
 
-        if (loc == curr->location && dir == curr->direction) {
-            return true;
-        }
-
         for (const std::pair<int,int>& neighbor: getNeighbors(curr->location, curr->direction)) {
             int i {neighbor.first * 4 + neighbor.second};
             if (closed.find(i) != closed.end()) {
@@ -82,6 +78,10 @@ bool RRAstar::resume(int loc, int dir) {
                 open.push(nextNode);
                 allNodes[i] = nextNode;
             }
+        }
+
+        if (loc == curr->location && dir == curr->direction) {
+            return true;
         }
     }
 

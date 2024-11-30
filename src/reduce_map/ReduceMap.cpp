@@ -544,7 +544,7 @@ void ReduceMap::createAreasAroundBasePoints() {
 
             running = true;
             DijkstraNode* curr {open[i].top()};
-            while (!open[i].empty() && curr->g == distance) {
+            while (!open[i].empty() && curr->g <= distance) {
                 open[i].pop();
                 closed[i][curr->location] = curr;
 
@@ -702,6 +702,7 @@ void ReduceMap::dijkstra(int startLoc, int id) {
     for (int i {0}; i < basePoints.size(); ++i) {
         auto it {closed.find(basePoints[i])};
         if (it != closed.end()) {
+            basePointDistances[id][i].first = it->second->g;
             backTrack(id, i, it->second);
         }
     }
