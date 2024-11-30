@@ -567,7 +567,7 @@ void ReduceMap::createAreasAroundBasePoints() {
 
                 if (areaMap[curr->location] == EMPTY) {
                     areaMap[curr->location] = i; // i == basePoint id
-                    areaLocations[i].insert(curr->location);
+                    areaLocations[i].emplace(curr->location);
                 }
 
                 if (!open[i].empty()) {
@@ -584,6 +584,33 @@ void ReduceMap::createAreasAroundBasePoints() {
             delete n.second;
         }
     }
+            
+    for (int i {0}; i < basePoints.size(); ++i) {
+        createAreaBorders(i);
+    }
+}
+
+void ReduceMap::createAreaBorders(int areaId) {
+    for (const auto& areaLocation : areaLocations[areaId]) {
+        for (const std::pair<int,int>& neighbor : getGoalNeighbors(areaLocation)) {
+            if (areaMap[neighbor.first] != areaId) { 
+                areaBorders[areaId].emplace(neighbor.first, neighbor.second);
+            }
+        }
+    }
+}
+
+std::list<std::pair<int,int>> ReduceMap::getGoalNeighbors(int loc) const {
+    std::list<std::pair<int,int>> neighbours;
+    int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
+
+    for (int i {0}; i < 4; ++i) {
+        if (validateMove(candidates[i], loc)) {
+            neighbours.emplace_back(std::make_pair(candidates[i], (i + 2) % 4));
+        }
+    }
+
+    return neighbours;
 }
 
 std::list<std::pair<int,int>> ReduceMap::getNeighbors(int loc, int parent_loc) const {
@@ -607,8 +634,7 @@ std::list<std::pair<int,int>> ReduceMap::getNeighbors(int loc, int parent_loc) c
     return neighbors;
 }
 
-bool ReduceMap::validateMove(int loc1, int loc2) const
-{
+bool ReduceMap::validateMove(int loc1, int loc2) const {
     int loc_x {loc1 / env->cols};
     int loc_y {loc1 % env->cols};
     if (env->map[loc1] == 1 || loc_x >= env->rows || loc_y >= env->cols || loc_x < 0 || loc_y < 0) {

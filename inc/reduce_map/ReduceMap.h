@@ -21,6 +21,13 @@ public:
     std::vector<std::vector<std::pair<int,std::list<int>>>> basePointDistances;
     std::unordered_map<int, std::unordered_set<int>> areaLocations;
 
+    struct hashFunction { 
+        size_t operator()(const pair<int,int> &x) const { 
+            return x.first ^ x.second; 
+        } 
+    };
+    std::unordered_map<int, std::unordered_set<std::pair<int,int>,hashFunction>> areaBorders;
+
     void reduceMapStart();
     bool reduceMap(bool keepSalient);
 
@@ -61,6 +68,9 @@ private:
     void markBasePoints(int distance);
     bool markRandomPoint(int row, int col, int distance, int id);
     void createAreasAroundBasePoints();
+    void createAreaBorders(int areaId);
+    std::list<std::pair<int,int>> getGoalNeighbors(int loc) const;
+
     void dijkstra(int startLoc, int id);
     void backTrack(int from, int to, DijkstraNode* current);
 

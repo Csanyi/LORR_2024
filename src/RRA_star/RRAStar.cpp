@@ -11,7 +11,7 @@ void RRAstar::initialize(int start, int startDir, int goal) {
     }
 
     for (int i {0}; i < 4; ++i) {
-        RRAstarNode* s = new RRAstarNode(goal, i, 0, getManhattanDist(goal, start));
+        RRAstarNode* s = new RRAstarNode(goal, i, 0, 0);
         closed[goal * 4 + i] = s;
         allNodes[goal * 4 + i] = s;
     }
@@ -23,19 +23,17 @@ void RRAstar::initialize(int start, int startDir, int goal) {
 
 void RRAstar::initialize(int start, int startDir, int areaId, const ReduceMap* reduce) {
     this->start = start;
-    for (int goal : reduce->areaLocations.at(areaId)) {
-        for (const std::pair<int,int>& neighbor : getGoalNeighbors(goal)) {
-            if (reduce->areaMap[neighbor.first] == areaId) { continue; }
-
-            RRAstarNode* n = new RRAstarNode(neighbor.first, neighbor.second, 1, getManhattanDist(neighbor.first, start));
+    for (const auto& border : reduce->areaBorders.at(areaId)) {
+            RRAstarNode* n = new RRAstarNode(border.first, border.second, 1, getManhattanDist(border.first, start));
             open.push(n);
-            allNodes[neighbor.first * 4 + neighbor.second] = n;
-        }
+            allNodes[border.first * 4 + border.second] = n;
+    }
 
+    for (const auto& areaLocation : reduce->areaLocations.at(areaId)) {
         for (int i {0}; i < 4; ++i) {
-            RRAstarNode* s = new RRAstarNode(goal, i, 0, getManhattanDist(goal, start));
-            closed[goal * 4 + i] = s;
-            allNodes[goal * 4 + i] = s;
+            RRAstarNode* s = new RRAstarNode(areaLocation, i, 0, 0);
+            closed[areaLocation * 4 + i] = s;
+            allNodes[areaLocation * 4 + i] = s;
         }
     }
 
