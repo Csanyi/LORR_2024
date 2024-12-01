@@ -3,23 +3,19 @@
 #include <algorithm>
 #include <chrono>
 #include <boost/asio.hpp>
-#include <boost/thread.hpp>
 #include "PIBT/PIBT.h"
 
 void PIBT::initialize() {
+    agentsPerThread = env->num_of_agents / threadCnt;
+    remainingAgents = env->num_of_agents % threadCnt;
+
     prevReservations.resize(env->map.size(), -1);
     nextReservations.resize(env->map.size(), -1);
 
     reduce.eraseDeadEnds();
 
-    reduce.divideIntoAreas(6);
+    reduce.divideIntoAreas(5);
     reduce.calculateDistanceBetweenAreas();
-    reduce.printReducedMap();
-
-    int count = std::count_if(reduce.areaMap.begin(), reduce.areaMap.end(), [](int x) { return x == ReduceMap::EMPTY; });
-    int count2 = std::count_if(env->map.begin(), env->map.end(), [](int x) { return x == 1; });
-
-    std::cout << "BasePointMap: " << count << "; EnvMap: " << count2 << '\n';
 
     agents.reserve(env->num_of_agents);  
     agentsById.reserve(env->num_of_agents);    
@@ -29,15 +25,6 @@ void PIBT::initialize() {
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
-
-    for (int i {0}; i < reduce.basePointDistances.size(); ++i) {
-        for (int j {0}; j < reduce.basePointDistances[i].size(); ++j) {
-            for (int x : reduce.basePointDistances[i][j].second) {
-                std::cout << x << " -> ";
-            }
-            std::cout << '\n';
-        }
-    } 
 }
 
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
@@ -49,13 +36,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
         if (reduce.deadEndMap[agent->getLoc()] != ReduceMap::DEADLOC) { agent->resetPriority(); }
     }
 
-    // if (env->map.size() > 9999) {
-    //     setGoalsParallel(); 
-    // } 
-    // else 
-    {
-        setGoals(endTime);
-    }
+    calculateGoalDistances();
 
     std::sort(agents.begin(), agents.end(), [](const Agent2* a, const Agent2* b) {
         if (a->p == b->p) {
@@ -186,46 +167,41 @@ Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visi
     return action;
 }
 
-void PIBT::setGoalsParallel() {
-    boost::asio::thread_pool pool(boost::thread::hardware_concurrency());
+void PIBT::calculateGoalDistances() {
+    boost::asio::thread_pool pool(threadCnt);
+    int remaining {remainingAgents};
+    int from {0};
+    int to;
 
-    for (auto& agent : agents) {
-        if (agent->isNewGoal()) {
-            boost::asio::post(pool, [this, agent]() {
-                agent->setGoal(); 
-                if (reduce.deadEndMap[agent->getLoc()] == ReduceMap::DEADLOC) { agent->boostPriority(); }
-            });
-        }
-        else {
-            auto neighbors = agent->getNeighborsWithUnknownDist();
+    for (int i {0}; i < threadCnt; ++i) {
+        to = from + agentsPerThread + (remaining-- > 0 ? 1 : 0);
 
-            if (!neighbors.empty()) {
-                boost::asio::post(pool, [agent, neighbors]() { 
-                    for (auto& neighbor : neighbors) {
-                        agent->getDist(neighbor.first, neighbor.second);
-                    }
-                });
+        boost::asio::post(pool, [this, from, to]() {
+            for (int j {from}; j < to; ++j) {
+                if (agents[j]->isNewGoal()) {
+                    agents[j]->setGoal(); 
+                    if (reduce.deadEndMap[agents[j]->getLoc()] == ReduceMap::DEADLOC) { agents[j]->boostPriority(); }
+                }
+
+                agents[j]->calculateNeighborDists();
             }
-        }
+        });
+
+        from = to;
     }
+
+    // for (auto& agent : agents) {
+    //     boost::asio::post(pool, [this, &agent]() {
+    //         if (agent->isNewGoal()) {
+    //             agent->setGoal(); 
+    //             if (reduce.deadEndMap[agent->getLoc()] == ReduceMap::DEADLOC) { agent->boostPriority(); }
+    //         }
+
+    //         agent->calculateNeighborDists();
+    //     });
+    // }
 
     pool.join();
-}
-
-void PIBT::setGoals(const TimePoint& endTime) {
-    for (auto& agent : agents) {
-        if (std::chrono::steady_clock::now() > endTime) {
-            std::cout << "-------- Out of time during setGoal (t: " << env->curr_timestep << ") at agent: " << agent->id << '\n';
-            break;
-        }
-
-        if (agent->isNewGoal()) {
-            agent->setGoal();
-            if (reduce.deadEndMap[agent->getLoc()] == ReduceMap::DEADLOC) {
-                agent->boostPriority();
-            }
-        }
-    }
 }
 
 PIBT::~PIBT() {

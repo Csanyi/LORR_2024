@@ -20,15 +20,13 @@ void Agent2::setGoal() {
     p = goalDist;
 }
 
-int Agent2::getDist(int loc, int dir) {
+void Agent2::setArea() {
     int areaFrom {reduce->areaMap[getLoc()]};
 
     if (nextArea != endArea && areaFrom == *nextArea) {
         int areaTo {reduce->areaMap[goal]}; 
         initializeHeuristic(areaFrom, areaTo);
-    } 
-
-    return heuristic.abstractDist(loc, dir);
+    }
 }
 
 int Agent2::getLoc() const {
@@ -50,32 +48,32 @@ bool Agent2::isNewGoal() const {
 std::vector<std::pair<int,int>> Agent2::getNeighborsWithDist() {
     std::vector<std::pair<int,int>> neighbours;
     int loc {getLoc()};
-    int dir {getDir()};
     int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
 
     for (int i{0}; i < 4; ++i) {
         if (validateMove(candidates[i], loc)) {
-            neighbours.emplace_back(std::make_pair(candidates[i], getDist(candidates[i], i)));
+            neighbours.emplace_back(std::make_pair(candidates[i], heuristic.abstractDist(candidates[i], i)));
         }
     }
 
-    neighbours.emplace_back(std::make_pair(loc, getDist(loc, dir)));
+    neighbours.emplace_back(std::make_pair(loc, heuristic.abstractDist(loc, getDir())));
 
     return neighbours;
 }
 
-std::vector<std::pair<int,int>> Agent2::getNeighborsWithUnknownDist() const {
-    std::vector<std::pair<int,int>> neighbours;
+void Agent2::calculateNeighborDists() {
+    setArea();
+
     int loc {getLoc()};
     int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
 
     for (int i{0}; i < 4; ++i) {
-        if (validateMove(candidates[i], loc) && !heuristic.isDistKnown(candidates[i], i)) {
-            neighbours.emplace_back(std::make_pair(candidates[i], i));
+        if (validateMove(candidates[i], loc)) {
+            heuristic.abstractDist(candidates[i], i);
         }
     }
 
-    return neighbours;
+    heuristic.abstractDist(loc, getDir());
 }
 
 bool Agent2::validateMove(int loc1, int loc2) const {
@@ -104,6 +102,5 @@ void Agent2::initializeHeuristic(int areaFrom, int areaTo) {
     else {
         ++nextArea;
         heuristic.initialize(getLoc(), getDir(), *nextArea, reduce);
-        // heuristic.initialize(getLoc(), getDir(), reduce.basePoints[*nextArea]);
     }
 }

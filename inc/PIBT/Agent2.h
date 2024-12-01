@@ -14,7 +14,6 @@ public:
     Agent2(int _id, SharedEnvironment* _env, ReduceMap* _reduce): id(_id), heuristic(_env), env(_env), reduce(_reduce) { }
 
     void setGoal();
-    int getDist(int loc, int dir);
     int getLoc() const;
     int getDir() const;
     bool isNewGoal() const;
@@ -22,7 +21,7 @@ public:
     void resetPriority() { p = goalDist; }
 
     std::vector<std::pair<int,int>> getNeighborsWithDist();
-    std::vector<std::pair<int,int>> getNeighborsWithUnknownDist() const;
+    void calculateNeighborDists();
 
 private:
     SharedEnvironment* env;
@@ -35,6 +34,7 @@ private:
 
     bool validateMove(int loc1, int loc2) const;
     void initializeHeuristic(int areaFrom, int areaTo);
+    void setArea();
 };
 
 #endif // AGENT2_H
