@@ -2,6 +2,7 @@
 #define PIBT_H
 
 #include <vector>
+#include <thread>
 #include "SharedEnv.h"
 #include "ActionModel.h"
 #include "PIBT/Agent.h"
@@ -16,6 +17,9 @@ public:
     void nextStep(int timeLimit, std::vector<Action>& actions);
 
 private:
+    const unsigned int threadCnt {std::thread::hardware_concurrency()};
+    int agentsPerThread;
+    int remainingAgents;
     SharedEnvironment* env;
     std::vector<Agent*> agentsById;
     std::vector<Agent*> agents;
@@ -26,8 +30,7 @@ private:
     bool getNextLoc(Agent* const a, const Agent* const b);
     Action getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent* const a);
 
-    void setGoalsParallel();
-    void setGoals(const TimePoint& endTime);
+    void calculateGoalDistances();
 };
 
 #endif // PIBT_H

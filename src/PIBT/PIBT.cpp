@@ -2,24 +2,29 @@
 #include <set>
 #include <algorithm>
 #include <chrono>
-#include <boost/asio.hpp>
-#include <boost/thread.hpp>
 #include "PIBT/PIBT.h"
 
 void PIBT::initialize() {
+    agentsPerThread = env->num_of_agents / threadCnt;
+    remainingAgents = env->num_of_agents % threadCnt;
+
     prevReservations.resize(env->map.size(), -1);
     nextReservations.resize(env->map.size(), -1);
+
+    reduce.eraseDeadEnds();
+
+    int areaDist = (env->map.size() < 2048) ? env->cols + 1 : 5;
+    reduce.divideIntoAreas(areaDist);
+    reduce.calculateDistanceBetweenAreas();
 
     agents.reserve(env->num_of_agents);  
     agentsById.reserve(env->num_of_agents);    
   
     for (int i {0}; i < env->num_of_agents; ++i) {
-        Agent* agent = new Agent(i, env);
+        Agent* agent = new Agent(i, env, &reduce);
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
-
-    reduce.eraseDeadEnds();
 }
 
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
@@ -28,15 +33,10 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 
     for (auto& agent : agents) {
         prevReservations[agent->getLoc()] = agent->id;
-        if (reduce.deadEndMap[agent->getLoc()] != 2) { agent->resetPriority(); }
+        if (reduce.deadEndMap[agent->getLoc()] != ReduceMap::DEADLOC) { agent->resetPriority(); }
     }
 
-    if (env->map.size() > 9999) {
-        setGoalsParallel(); 
-    } 
-    else {
-        setGoals(endTime);
-    }
+    calculateGoalDistances();
 
     std::sort(agents.begin(), agents.end(), [](const Agent* a, const Agent* b) {
         if (a->p == b->p) {
@@ -82,7 +82,7 @@ bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
 
         if (b != nullptr && prevReservations[neighbor.first] == b->id) { continue; }
 
-        if (b != nullptr && reduce.deadEndMap[neighbor.first] == 2) { continue; }
+        if (b != nullptr && reduce.deadEndMap[neighbor.first] == ReduceMap::DEADLOC) { continue; }
 
         a->nextLoc = neighbor.first;
         nextReservations[neighbor.first] = a->id;
@@ -167,45 +167,31 @@ Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visi
     return action;
 }
 
-void PIBT::setGoalsParallel() {
-    boost::asio::thread_pool pool(boost::thread::hardware_concurrency());
+void PIBT::calculateGoalDistances() {
+    std::vector<std::thread> threads;
+    int remaining {remainingAgents};
+    int from {0};
+    int to;
 
-    for (auto& agent : agents) {
-        if (agent->isNewGoal()) {
-            boost::asio::post(pool, [this, agent]() {
-                agent->setGoal(); 
-                if (reduce.deadEndMap[agent->getLoc()] == 2) { agent->boostPriority(); }
-            });
-        }
-        else {
-            auto neighbors = agent->getNeighborsWithUnknownDist();
+    for (int i {0}; i < threadCnt; ++i) {
+        to = from + agentsPerThread + (remaining-- > 0 ? 1 : 0);
 
-            if (!neighbors.empty()) {
-                boost::asio::post(pool, [agent, neighbors]() { 
-                    for (auto& neighbor : neighbors) {
-                        agent->getDist(neighbor.first, neighbor.second);
-                    }
-                });
+        threads.emplace_back([this, from, to]() {
+            for (int j {from}; j < to; ++j) {
+                if (agents[j]->isNewGoal()) {
+                    agents[j]->setGoal(); 
+                    if (reduce.deadEndMap[agents[j]->getLoc()] == ReduceMap::DEADLOC) { agents[j]->boostPriority(); }
+                }
+
+                agents[j]->calculateNeighborDists();
             }
-        }
+        });
+
+        from = to;
     }
 
-    pool.join();
-}
-
-void PIBT::setGoals(const TimePoint& endTime) {
-    for (auto& agent : agents) {
-        if (std::chrono::steady_clock::now() > endTime) {
-            std::cout << "-------- Out of time during setGoal (t: " << env->curr_timestep << ") at agent: " << agent->id << '\n';
-            break;
-        }
-
-        if (agent->isNewGoal()) {
-            agent->setGoal();
-            if (reduce.deadEndMap[agent->getLoc()] == 2) {
-                agent->boostPriority();
-            }
-        }
+    for (auto t = threads.begin(); t != threads.end(); ++t) {
+        t->join();
     }
 }
 

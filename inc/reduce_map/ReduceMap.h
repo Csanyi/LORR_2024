@@ -2,12 +2,31 @@
 #define REDUCEMAP_H
 
 #include <vector>
+#include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include "SharedEnv.h"
+#include "reduce_map/DijkstraNode.h"
 
 class ReduceMap {
 public:
     ReduceMap(SharedEnvironment* _env): env(_env) { }
+
+    static constexpr int EMPTY  { -1 };
+    static constexpr int DEADLOC { 2 };
+
+    std::vector<int> deadEndMap;
+    std::vector<int> basePoints;
+    std::vector<int> areaMap;
+    std::vector<std::vector<std::pair<int,std::list<int>>>> basePointDistances;
+    std::unordered_map<int, std::unordered_set<int>> areaLocations;
+
+    struct hashFunction { 
+        size_t operator()(const pair<int,int> &x) const { 
+            return x.first ^ x.second; 
+        } 
+    };
+    std::unordered_map<int, std::unordered_set<std::pair<int,int>,hashFunction>> areaBorders;
 
     void reduceMapStart();
     bool reduceMap(bool keepSalient);
@@ -18,13 +37,16 @@ public:
     void printReducedMap() const;
     void printReducedMapWaypoints() const;
 
+    void hierarchyMapStart(int grid);
+
+    void divideIntoAreas(int distance);
+    void calculateDistanceBetweenAreas();
+
     void eraseDeadEnds();
 
-    std::vector<int> deadEndMap;
-
 private:
-    const int MAP_PRINT_WIDTH = 550;
-    const int MAP_PRINT_OFFSET = 0;
+    const int MAP_PRINT_WIDTH { 550 };
+    const int MAP_PRINT_OFFSET { 0 };
 
     SharedEnvironment* env;
     std::vector<int> reducedMap;
@@ -42,6 +64,18 @@ private:
     int countReducedHorizontalNeighbours(int location) const;
 
     bool isDeadLoc(int location) const;
+
+    void markBasePoints(int distance);
+    bool markRandomPoint(int row, int col, int distance, int id);
+    void createAreasAroundBasePoints();
+    void createAreaBorders(int areaId);
+    std::list<std::pair<int,int>> getGoalNeighbors(int loc) const;
+
+    void dijkstra(int startLoc, int id);
+    void backTrack(int from, int to, DijkstraNode* current);
+
+    std::list<std::pair<int,int>> getNeighbors(int loc, int parent_loc) const;
+    bool validateMove(int loc1, int loc2) const;
 };
 
 #endif // REDUCEMAP_H

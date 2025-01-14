@@ -11,7 +11,7 @@ void RRAstar::initialize(int start, int startDir, int goal) {
     }
 
     for (int i {0}; i < 4; ++i) {
-        RRAstarNode* s = new RRAstarNode(goal, i, 0, getManhattanDist(goal, start));
+        RRAstarNode* s = new RRAstarNode(goal, i, 0, 0);
         closed[goal * 4 + i] = s;
         allNodes[goal * 4 + i] = s;
     }
@@ -19,6 +19,25 @@ void RRAstar::initialize(int start, int startDir, int goal) {
     if (start != goal) {
         resume(start, startDir);
     }
+}
+
+void RRAstar::initialize(int start, int startDir, int areaId, const ReduceMap* reduce) {
+    this->start = start;
+    for (const auto& border : reduce->areaBorders.at(areaId)) {
+            RRAstarNode* n = new RRAstarNode(border.first, border.second, 1, getManhattanDist(border.first, start));
+            open.push(n);
+            allNodes[border.first * 4 + border.second] = n;
+    }
+
+    for (const auto& areaLocation : reduce->areaLocations.at(areaId)) {
+        for (int i {0}; i < 4; ++i) {
+            RRAstarNode* s = new RRAstarNode(areaLocation, i, 0, 0);
+            closed[areaLocation * 4 + i] = s;
+            allNodes[areaLocation * 4 + i] = s;
+        }
+    }
+
+    resume(start, startDir);
 }
 
 int RRAstar::abstractDist(int loc, int dir) {
@@ -42,12 +61,7 @@ bool RRAstar::resume(int loc, int dir) {
         open.pop();
         closed[curr->location * 4 + curr->direction] = curr;
 
-        if (loc == curr->location && dir == curr->direction) {
-            return true;
-        }
-
-        for (const std::pair<int,int>& neighbor: getNeighbors(curr->location, curr->direction))
-        {
+        for (const std::pair<int,int>& neighbor: getNeighbors(curr->location, curr->direction)) {
             int i {neighbor.first * 4 + neighbor.second};
             if (closed.find(i) != closed.end()) {
                 continue;
@@ -64,6 +78,10 @@ bool RRAstar::resume(int loc, int dir) {
                 open.push(nextNode);
                 allNodes[i] = nextNode;
             }
+        }
+
+        if (loc == curr->location && dir == curr->direction) {
+            return true;
         }
     }
 
