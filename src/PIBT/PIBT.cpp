@@ -2,7 +2,6 @@
 #include <set>
 #include <algorithm>
 #include <chrono>
-#include <boost/asio.hpp>
 #include "PIBT/PIBT.h"
 
 void PIBT::initialize() {
@@ -14,14 +13,15 @@ void PIBT::initialize() {
 
     reduce.eraseDeadEnds();
 
-    reduce.divideIntoAreas(5);
+    int areaDist = (env->map.size() < 2048) ? env->cols + 1 : 5;
+    reduce.divideIntoAreas(areaDist);
     reduce.calculateDistanceBetweenAreas();
 
     agents.reserve(env->num_of_agents);  
     agentsById.reserve(env->num_of_agents);    
   
     for (int i {0}; i < env->num_of_agents; ++i) {
-        Agent2* agent = new Agent2(i, env, &reduce);
+        Agent* agent = new Agent(i, env, &reduce);
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
@@ -38,7 +38,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 
     calculateGoalDistances();
 
-    std::sort(agents.begin(), agents.end(), [](const Agent2* a, const Agent2* b) {
+    std::sort(agents.begin(), agents.end(), [](const Agent* a, const Agent* b) {
         if (a->p == b->p) {
             return a->id < b->id;
         }
@@ -68,7 +68,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
     std::fill(nextReservations.begin(), nextReservations.end(), -1);
 }
 
-bool PIBT::getNextLoc(Agent2* const a, const Agent2* const b) {
+bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
     auto neighbors = a->getNeighborsWithDist();
     std::sort(neighbors.begin(), neighbors.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
         if (a.second == b.second) {
@@ -103,7 +103,7 @@ bool PIBT::getNextLoc(Agent2* const a, const Agent2* const b) {
     return false;
 }
 
-Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent2* const a) {
+Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent* const a) {
     if (a->nextLoc == -1) { return Action::W; }
     Action action;
     int dir;
@@ -168,7 +168,7 @@ Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visi
 }
 
 void PIBT::calculateGoalDistances() {
-    boost::asio::thread_pool pool(threadCnt);
+    std::vector<std::thread> threads;
     int remaining {remainingAgents};
     int from {0};
     int to;
@@ -176,7 +176,7 @@ void PIBT::calculateGoalDistances() {
     for (int i {0}; i < threadCnt; ++i) {
         to = from + agentsPerThread + (remaining-- > 0 ? 1 : 0);
 
-        boost::asio::post(pool, [this, from, to]() {
+        threads.emplace_back([this, from, to]() {
             for (int j {from}; j < to; ++j) {
                 if (agents[j]->isNewGoal()) {
                     agents[j]->setGoal(); 
@@ -190,18 +190,9 @@ void PIBT::calculateGoalDistances() {
         from = to;
     }
 
-    // for (auto& agent : agents) {
-    //     boost::asio::post(pool, [this, &agent]() {
-    //         if (agent->isNewGoal()) {
-    //             agent->setGoal(); 
-    //             if (reduce.deadEndMap[agent->getLoc()] == ReduceMap::DEADLOC) { agent->boostPriority(); }
-    //         }
-
-    //         agent->calculateNeighborDists();
-    //     });
-    // }
-
-    pool.join();
+    for (auto t = threads.begin(); t != threads.end(); ++t) {
+        t->join();
+    }
 }
 
 PIBT::~PIBT() {

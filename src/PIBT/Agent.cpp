@@ -2,48 +2,31 @@
 #include "PIBT/Agent.h"
 
 void Agent::setGoal() {
-    int currLoc {env->curr_states[id].location};
-    int currDir {env->curr_states[id].orientation};
-
     if (env->goal_locations[id].empty()) {
-        goal = currLoc;
+        goal = getLoc();
     }
     else {
         goal = env->goal_locations[id].front().first;
     }
 
-    // auto start {std::chrono::steady_clock::now()};
+    int areaFrom {reduce->areaMap[getLoc()]};
+    int areaTo {reduce->areaMap[goal]};
+    nextArea = reduce->basePointDistances[areaFrom][areaTo].second.cbegin();
+    endArea = reduce->basePointDistances[areaFrom][areaTo].second.cend();
 
-    heuristic.reset();
-    heuristic.initialize(currLoc, currDir, goal);
+    initializeHeuristic(areaFrom, areaTo);
 
-    goalDist = heuristic.abstractDist(currLoc, currDir);
+    goalDist = reduce->basePointDistances[areaFrom][areaTo].first + heuristic.abstractDist(getLoc(), getDir());
     p = goalDist;
-
-    // auto end {std::chrono::steady_clock::now()};
-    // auto duration {std::chrono::duration_cast<std::chrono::milliseconds>(end - start)};
-
-    // if (duration.count() > 10) 
-    // {
-    //     std::cout << "******** Heuristic for agent "<< id << " took " << duration.count() << " ms (" << env->curr_states[id].location
-    //         << ", " << goal << ")\n";
-    // }
 }
 
-int Agent::getDist(int loc, int dir) {
-    // auto start {std::chrono::steady_clock::now()};
+void Agent::setArea() {
+    int areaFrom {reduce->areaMap[getLoc()]};
 
-    return heuristic.abstractDist(loc, dir);
-
-    // auto end {std::chrono::steady_clock::now()};
-    // auto duration {std::chrono::duration_cast<std::chrono::milliseconds>(end - start)};
-
-    // if (duration.count() > 10) {
-    //     std::cout << "******** Heuristic for agent "<< id << " took " << duration.count() << " ms (" << env->curr_states[id].location
-    //         << ", " << goal << ")\n";
-    // }
-
-    // return result;
+    if (nextArea != endArea && areaFrom == *nextArea) {
+        int areaTo {reduce->areaMap[goal]}; 
+        initializeHeuristic(areaFrom, areaTo);
+    }
 }
 
 int Agent::getLoc() const {
@@ -65,32 +48,32 @@ bool Agent::isNewGoal() const {
 std::vector<std::pair<int,int>> Agent::getNeighborsWithDist() {
     std::vector<std::pair<int,int>> neighbours;
     int loc {getLoc()};
-    int dir {getDir()};
     int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
 
     for (int i{0}; i < 4; ++i) {
         if (validateMove(candidates[i], loc)) {
-            neighbours.emplace_back(std::make_pair(candidates[i], getDist(candidates[i], i)));
+            neighbours.emplace_back(std::make_pair(candidates[i], heuristic.abstractDist(candidates[i], i)));
         }
     }
 
-    neighbours.emplace_back(std::make_pair(loc, getDist(loc, dir)));
+    neighbours.emplace_back(std::make_pair(loc, heuristic.abstractDist(loc, getDir())));
 
     return neighbours;
 }
 
-std::vector<std::pair<int,int>> Agent::getNeighborsWithUnknownDist() const {
-    std::vector<std::pair<int,int>> neighbours;
+void Agent::calculateNeighborDists() {
+    setArea();
+
     int loc {getLoc()};
     int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
 
     for (int i{0}; i < 4; ++i) {
-        if (validateMove(candidates[i], loc) && !heuristic.isDistKnown(candidates[i], i)) {
-            neighbours.emplace_back(std::make_pair(candidates[i], i));
+        if (validateMove(candidates[i], loc)) {
+            heuristic.abstractDist(candidates[i], i);
         }
     }
 
-    return neighbours;
+    heuristic.abstractDist(loc, getDir());
 }
 
 bool Agent::validateMove(int loc1, int loc2) const {
@@ -107,4 +90,17 @@ bool Agent::validateMove(int loc1, int loc2) const {
     }
 
     return true;
+}
+
+void Agent::initializeHeuristic(int areaFrom, int areaTo) {
+    heuristic.reset();
+
+    if (areaFrom == areaTo) {
+        nextArea = endArea;
+        heuristic.initialize(getLoc(), getDir(), goal);
+    }
+    else {
+        ++nextArea;
+        heuristic.initialize(getLoc(), getDir(), *nextArea, reduce);
+    }
 }
