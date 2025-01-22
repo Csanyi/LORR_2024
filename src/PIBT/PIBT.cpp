@@ -28,12 +28,12 @@ void PIBT::initialize() {
 }
 
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
-    TimePoint startTime  {std::chrono::steady_clock::now()};
-    TimePoint endTime {startTime + std::chrono::milliseconds(timeLimit - 20)};
+    const TimePoint startTime  {std::chrono::steady_clock::now()};
+    const TimePoint endTime {startTime + std::chrono::milliseconds(timeLimit - 20)};
 
     for (auto& agent : agents) {
         prevReservations[agent->getLoc()] = agent->id;
-        if (reduce.deadEndMap[agent->getLoc()] != ReduceMap::DEADLOC) { agent->resetPriority(); }
+        if (reduce.deadEndMap[agent->getLoc()] == ReduceMap::DEADLOC) { agent->boostPriority(); }
     }
 
     calculateGoalDistances();
@@ -70,11 +70,13 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 
 bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
     auto neighbors = a->getNeighborsWithDist();
-    std::sort(neighbors.begin(), neighbors.end(), [this](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-        if (a.second == b.second) {
-            return prevReservations[a.first] == -1;
+    std::sort(neighbors.begin(), neighbors.end(), [this, &a, &b](const std::pair<int, int>& n1, const std::pair<int, int>& n2) {
+        if (reduce.deadEndMap[n1.first] == ReduceMap::DEADLOC && a->getGoal() != n1.first) { return false; }
+
+        if (n1.second == n2.second) {
+            return prevReservations[n1.first] == -1;
         }
-        return a.second < b.second;
+        return n1.second < n2.second;
     });
 
     for (const auto& neighbor : neighbors) {
@@ -82,24 +84,20 @@ bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
 
         if (b != nullptr && prevReservations[neighbor.first] == b->id) { continue; }
 
-        if (b != nullptr && reduce.deadEndMap[neighbor.first] == ReduceMap::DEADLOC) { continue; }
-
         a->nextLoc = neighbor.first;
         nextReservations[neighbor.first] = a->id;
 
         int otherAgent {prevReservations[neighbor.first]};
 
         if (otherAgent != -1 && agentsById[otherAgent]->nextLoc == -1) {
-            if (getNextLoc(agentsById[otherAgent], a) == false) {
-                a->nextLoc = -1;
-                nextReservations[neighbor.first] = -1;
-                continue;
-            }
+            if (getNextLoc(agentsById[otherAgent], a) == false) { continue; }
         }
 
         return true;
     }
 
+    a->nextLoc = a->getLoc();
+    nextReservations[a->nextLoc] = a->id;
     return false;
 }
 
@@ -180,7 +178,6 @@ void PIBT::calculateGoalDistances() {
             for (int j {from}; j < to; ++j) {
                 if (agents[j]->isNewGoal()) {
                     agents[j]->setGoal(); 
-                    if (reduce.deadEndMap[agents[j]->getLoc()] == ReduceMap::DEADLOC) { agents[j]->boostPriority(); }
                 }
 
                 agents[j]->calculateNeighborDists();

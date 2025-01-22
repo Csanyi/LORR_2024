@@ -14,10 +14,11 @@ public:
     Agent(int _id, SharedEnvironment* _env, ReduceMap* _reduce): id(_id), heuristic(_env), env(_env), reduce(_reduce) { }
 
     void setGoal();
+    int getGoal() const { return goal; }
     int getLoc() const;
     int getDir() const;
     bool isNewGoal() const;
-    void boostPriority() { p -= 10000; }
+    void boostPriority() { p -= 1000; }
     void resetPriority() { p = goalDist; }
 
     std::vector<std::pair<int,int>> getNeighborsWithDist();
