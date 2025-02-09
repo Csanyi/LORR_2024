@@ -3,13 +3,11 @@
 #include <algorithm>
 #include <chrono>
 #include "PIBT/PIBT.h"
+#include "PIBT/Replan.h"
 
 void PIBT::initialize() {
     agentsPerThread = env->num_of_agents / threadCnt;
     remainingAgents = env->num_of_agents % threadCnt;
-
-    prevReservations.resize(env->map.size(), -1);
-    nextReservations.resize(env->map.size(), -1);
 
     reduce.eraseDeadEnds();
 
@@ -21,7 +19,7 @@ void PIBT::initialize() {
     agentsById.reserve(env->num_of_agents);    
   
     for (int i {0}; i < env->num_of_agents; ++i) {
-        Agent* agent = new Agent(i, env, &reduce);
+        Agent2* agent = new Agent2(i, env, &reduce);
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
@@ -30,84 +28,116 @@ void PIBT::initialize() {
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
     const TimePoint startTime  {std::chrono::steady_clock::now()};
     const TimePoint endTime {startTime + std::chrono::milliseconds(timeLimit - 20)};
+    time = 0;
+    reservations.push_back(std::vector<int>(env->map.size(), -1));
 
     for (auto& agent : agents) {
-        prevReservations[agent->getLoc()] = agent->id;
-        if (reduce.deadEndMap[agent->getLoc()] == ReduceMap::DEADLOC) { agent->boostPriority(); }
+        agent->goalTime = -1;
+        agent->locations.clear();
+        agent->locations.push_back({env->curr_states[agent->id].location, env->curr_states[agent->id].orientation});
+        reservations[time][agent->getLoc(time)] = agent->id;
+        if (reduce.deadEndMap[agent->getLoc(time)] == ReduceMap::DEADLOC) { agent->boostPriority(); }
     }
 
     calculateGoalDistances();
 
-    std::sort(agents.begin(), agents.end(), [](const Agent* a, const Agent* b) {
+    std::sort(agents.begin(), agents.end(), [](const Agent2* a, const Agent2* b) {
         if (a->p == b->p) {
             return a->id < b->id;
         }
         return a->p < b->p;
     });
-    
+
+    while (time < 20 && std::chrono::steady_clock::now() < endTime) {     
+        reservations.push_back(std::vector<int>(env->map.size(), -1));
+   
+        for (auto& agent : agents) {
+            if(agent->locations[time].first == agent->getGoal() && agent->goalTime == -1) {
+                agent->goalTime = time;
+            }
+            if (agent->locations.size() <= time + 1) {
+                getNextLoc(agent, nullptr);
+            }
+        }
+
+        actions = std::vector<Action>(env->num_of_agents, Action::NA);
+        std::vector<bool> visited(env->num_of_agents, false);
+        for (auto& a : agents) {
+            if (actions[a->id] == Action::NA) {
+                actions[a->id] = getNextAction(actions, visited, a);
+            }
+        }
+
+        ++time;
+    }
+
     for (auto& agent : agents) {
-        if (std::chrono::steady_clock::now() > endTime) {
-            std::cout << "-------- Out of time during nextLoc (t: " << env->curr_timestep << ") at agent: " << agent->id << '\n';
-            break;
+        if(agent->goalTime == -1) {
+            agent->goalTime = time;
         }
-        if (agent->nextLoc == -1) {
-            getNextLoc(agent, nullptr);
-        }
+    }
+
+    std::random_device rd;
+    std::mt19937 rng(rd());
+
+    while (std::chrono::steady_clock::now() < endTime) {
+        std::vector<Agent2*> replanAgents;
+        // (agents.begin() + 30, agents.begin() + 40);
+        std::sample(agents.begin(), agents.end(), std::back_inserter(replanAgents), 10, rng);
+        Replan replan(env, reservations);
+        replan.replan(replanAgents);
     }
 
     actions = std::vector<Action>(env->num_of_agents, Action::NA);
-    std::vector<bool> visited(env->num_of_agents, false);
     for (auto& a : agents) {
-        if (actions[a->id] == Action::NA) {
-            actions[a->id] = getNextAction(actions, visited, a);
-        }
-        a->nextLoc = -1;
+        actions[a->id] = getNextAction2(a);
     }
 
-    std::fill(prevReservations.begin(), prevReservations.end(), -1);
-    std::fill(nextReservations.begin(), nextReservations.end(), -1);
+    reservations.clear();
 }
 
-bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
-    auto neighbors = a->getNeighborsWithDist();
+bool PIBT::getNextLoc(Agent2* const a, const Agent2* const b) {
+    a->locations.push_back({-1,-1});
+    auto neighbors = a->getNeighborsWithDist(time);
     std::sort(neighbors.begin(), neighbors.end(), [this, &a, &b](const std::pair<int, int>& n1, const std::pair<int, int>& n2) {
         if (reduce.deadEndMap[n1.first] == ReduceMap::DEADLOC && a->getGoal() != n1.first) { return false; }
 
         if (n1.second == n2.second) {
-            return prevReservations[n1.first] == -1;
+            return reservations[time][n1.first] == -1;
         }
         return n1.second < n2.second;
     });
 
     for (const auto& neighbor : neighbors) {
-        if (nextReservations[neighbor.first] != -1) { continue; }
+        if (reservations[time+1][neighbor.first] != -1) { continue; }
 
-        if (b != nullptr && prevReservations[neighbor.first] == b->id) { continue; }
+        if (b != nullptr && reservations[time][neighbor.first] == b->id) { continue; }
 
-        a->nextLoc = neighbor.first;
-        nextReservations[neighbor.first] = a->id;
+        a->locations[time+1].first = neighbor.first;
+        reservations[time+1][neighbor.first] = a->id;
 
-        int otherAgent {prevReservations[neighbor.first]};
+        int otherAgent {reservations[time][neighbor.first]};
 
-        if (otherAgent != -1 && agentsById[otherAgent]->nextLoc == -1) {
+        if (otherAgent != -1 && agentsById[otherAgent]->locations.size() <= time + 1) {
             if (getNextLoc(agentsById[otherAgent], a) == false) { continue; }
         }
 
         return true;
     }
 
-    a->nextLoc = a->getLoc();
-    nextReservations[a->nextLoc] = a->id;
+    a->locations[time+1].first = a->getLoc(time);
+    reservations[time+1][a->getLoc(time+1)] = a->id;
     return false;
 }
 
-Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent* const a) {
-    if (a->nextLoc == -1) { return Action::W; }
+Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent2* const a) {
+    if (a->getLoc(time+1) == -1) { assert(false); }
     Action action;
     int dir;
-    int diff {a->nextLoc - a->getLoc()};
+    int diff {a->getLoc(time+1) - a->getLoc(time)};
     
     if (diff == 0) {
+        a->locations[time+1].second = a->locations[time].second;
         return Action::W;
     }
     else if (diff == 1) {
@@ -126,14 +156,14 @@ Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visi
         assert(false);
     }
 
-    if (a->getDir() == dir) {
-        int otherAgent {prevReservations[a->nextLoc]};
+    if (a->getDir(time) == dir) {
+        int otherAgent {reservations[time][a->getLoc(time+1)]};
         assert(otherAgent != a->id);
 
         if (otherAgent != -1 && actions[otherAgent] == Action::NA && visited[otherAgent] == false) {
             visited[a->id] = true;
             actions[otherAgent] = getNextAction(actions, visited, agentsById[otherAgent]);
-            action = nextReservations[a->nextLoc] == a->id ? Action::FW : Action::W;
+            action = reservations[time+1][a->getLoc(time+1)] == a->id ? Action::FW : Action::W;
         }
         else if (otherAgent != -1 && actions[otherAgent] == Action::NA && visited[otherAgent] == true) {
             action = Action::FW;
@@ -144,24 +174,50 @@ Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visi
         else {
             action = Action::FW;
         }
+        a->locations[time+1].second = a->locations[time].second;
     }
     else {
-        int incr {dir - a->getDir()};
+        int incr {dir - a->getDir(time)};
         if (incr == 1 || incr == -3 || incr == 2 || incr == -2) {
+            a->locations[time+1].second = (a->locations[time].second + 1) % 4;
             action = Action::CR;
         }
         else if (incr == -1 || incr == 3) {
+            a->locations[time+1].second = (a->locations[time].second - 1 + 4) % 4;
             action = Action::CCR;
         }
     }
 
     if (action != Action::FW) {
-        if (nextReservations[a->nextLoc] == a->id) {
-            nextReservations[a->nextLoc] = -1;
+        if (reservations[time+1][a->getLoc(time+1)] == a->id) {
+            reservations[time+1][a->getLoc(time+1)] = -1;
         }
-        nextReservations[a->getLoc()] = a->id;
+        reservations[time+1][a->getLoc(time)] = a->id;
+        a->locations[time+1].first = a->locations[time].first;
     }
 
+    return action;
+}
+
+Action PIBT::getNextAction2(Agent2* const a) {
+    Action action;
+    int dir;
+    int diff {a->getLoc(0) - a->getLoc(1)};
+    int diff2 {a->getDir(0) - a->getDir(1)};
+
+    if (diff != 0) {
+        action = Action::FW;
+    }
+    else if (diff2 == 0) {
+        action = Action::W;
+    }    
+    else if (diff2 == -1 || diff2 == 3) {
+        action = Action::CR;
+    }
+    else if (diff2 == 1 || diff2 == -3) {
+        action = Action::CCR;
+    }
+    
     return action;
 }
 
@@ -180,7 +236,7 @@ void PIBT::calculateGoalDistances() {
                     agents[j]->setGoal(); 
                 }
 
-                agents[j]->calculateNeighborDists();
+                agents[j]->calculateNeighborDists(time);
             }
         });
 
