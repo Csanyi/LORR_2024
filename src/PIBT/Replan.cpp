@@ -100,6 +100,7 @@ std::pair<bool,std::list<std::pair<int,int>>> Replan::singleAgentPlan(int id, in
     bool success {false};
 
     while (!openList.empty()) {
+        if (std::chrono::steady_clock::now() > endTime) { break; }
         AstarNode* curr = openList.top();
         openList.pop();
         closeList.emplace(curr->location*4 + curr->direction);
