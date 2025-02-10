@@ -9,17 +9,17 @@ void PIBT::initialize() {
     agentsPerThread = env->num_of_agents / threadCnt;
     remainingAgents = env->num_of_agents % threadCnt;
 
-    reduce.eraseDeadEnds();
+    maputils.eraseDeadEnds();
 
     int areaDist = (env->map.size() < 2048) ? env->cols + 1 : 5;
-    reduce.divideIntoAreas(areaDist);
-    reduce.calculateDistanceBetweenAreas();
+    maputils.divideIntoAreas(areaDist);
+    maputils.calculateDistanceBetweenAreas();
 
     agents.reserve(env->num_of_agents);  
     agentsById.reserve(env->num_of_agents);    
   
     for (int i {0}; i < env->num_of_agents; ++i) {
-        Agent2* agent = new Agent2(i, env, &reduce);
+        Agent2* agent = new Agent2(i, env, &maputils);
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
@@ -27,7 +27,8 @@ void PIBT::initialize() {
 
 void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
     const TimePoint startTime  {std::chrono::steady_clock::now()};
-    const TimePoint endTime {startTime + std::chrono::milliseconds(timeLimit - 20)};
+    const TimePoint pibtEndTime {startTime + std::chrono::milliseconds(timeLimit / 2 - 10)};
+    const TimePoint lnsEndTime {startTime + std::chrono::milliseconds(timeLimit - 20)};
     time = 0;
     reservations.push_back(std::vector<int>(env->map.size(), -1));
 
@@ -36,7 +37,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
         agent->locations.clear();
         agent->locations.push_back({env->curr_states[agent->id].location, env->curr_states[agent->id].orientation});
         reservations[time][agent->getLoc(time)] = agent->id;
-        if (reduce.deadEndMap[agent->getLoc(time)] == ReduceMap::DEADLOC) { agent->boostPriority(); }
+        if (maputils.deadEndMap[agent->getLoc(time)] == MapUtils::DEADLOC) { agent->boostPriority(); }
     }
 
     calculateGoalDistances();
@@ -48,7 +49,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
         return a->p < b->p;
     });
 
-    while (time < 20 && std::chrono::steady_clock::now() < endTime) {     
+    while (time < 20 && std::chrono::steady_clock::now() < pibtEndTime) {     
         reservations.push_back(std::vector<int>(env->map.size(), -1));
    
         for (auto& agent : agents) {
@@ -77,16 +78,33 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
         }
     }
 
+    const TimePoint pibtTime  {std::chrono::steady_clock::now()};
+    const auto pibtDuration {std::chrono::duration_cast<std::chrono::milliseconds>(pibtTime - startTime)};
+    std::cout << "******** " << time << " PIBT iterations took " << pibtDuration.count() << " ms ********\n";
+
     std::random_device rd;
     std::mt19937 rng(rd());
+    int failCnt {0};
+    int iterations {0};
 
-    while (std::chrono::steady_clock::now() < endTime) {
+    while (std::chrono::steady_clock::now() < lnsEndTime) {
         std::vector<Agent2*> replanAgents;
-        // (agents.begin() + 30, agents.begin() + 40);
         std::sample(agents.begin(), agents.end(), std::back_inserter(replanAgents), 10, rng);
         Replan replan(env, reservations);
-        replan.replan(replanAgents);
+        bool success = replan.replan(replanAgents);
+        if (success) {
+            failCnt = 0;
+        } 
+        else {
+            ++failCnt;
+        }
+
+        ++iterations;
     }
+
+    const TimePoint lnsTime  {std::chrono::steady_clock::now()};
+    const auto lnsDuration = std::chrono::duration_cast<std::chrono::milliseconds>(lnsTime - pibtTime);
+    std::cout << "******** " << iterations << " LNS iterations took " << lnsDuration.count() << " ms ********\n";
 
     actions = std::vector<Action>(env->num_of_agents, Action::NA);
     for (auto& a : agents) {
@@ -100,7 +118,7 @@ bool PIBT::getNextLoc(Agent2* const a, const Agent2* const b) {
     a->locations.push_back({-1,-1});
     auto neighbors = a->getNeighborsWithDist(time);
     std::sort(neighbors.begin(), neighbors.end(), [this, &a, &b](const std::pair<int, int>& n1, const std::pair<int, int>& n2) {
-        if (reduce.deadEndMap[n1.first] == ReduceMap::DEADLOC && a->getGoal() != n1.first) { return false; }
+        if (maputils.deadEndMap[n1.first] == MapUtils::DEADLOC && a->getGoal() != n1.first) { return false; }
 
         if (n1.second == n2.second) {
             return reservations[time][n1.first] == -1;

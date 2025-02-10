@@ -6,11 +6,11 @@
 #include "SharedEnv.h"
 #include "ActionModel.h"
 #include "PIBT/Agent2.h"
-#include "reduce_map/ReduceMap.h"
+#include "map_utils/MapUtils.h"
 
 class PIBT {
 public:
-    PIBT(SharedEnvironment* _env): env(_env), reduce(_env) { }
+    PIBT(SharedEnvironment* _env): env(_env), maputils(_env) { }
     ~PIBT();
 
     void initialize();
@@ -24,7 +24,7 @@ private:
     std::vector<Agent2*> agentsById;
     std::vector<Agent2*> agents;
     std::vector<std::vector<int>> reservations;
-    ReduceMap reduce;
+    MapUtils maputils;
     int time;
 
     bool getNextLoc(Agent2* const a, const Agent2* const b);

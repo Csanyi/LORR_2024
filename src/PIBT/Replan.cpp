@@ -22,7 +22,7 @@ struct cmp {
 };
 
 bool Replan::replan(std::vector<Agent2*>& agents) {
-    std::vector<Agent2*> agentsCopy;
+    agentsCopy.clear();
     std::random_device rd;
     std::mt19937 g(rd());
 
@@ -37,10 +37,7 @@ bool Replan::replan(std::vector<Agent2*>& agents) {
 
     for (int i {1}; i < reservationsCopy.size(); ++i) {
         for (auto a : agentsCopy) {
-            auto start = a->locations.front();
-            auto goal = a->locations.back();
-            if (start.first == goal.first) { continue; }
-            else if (i < a->locations.size()) {
+            if (i < a->locations.size()) {
                 reservationsCopy[i][a->locations[i].first] = -1;
             }
             else {
@@ -52,10 +49,19 @@ bool Replan::replan(std::vector<Agent2*>& agents) {
     for (auto a : agentsCopy) {
         auto start = a->locations.front();
         auto goal = a->locations.back();
-        if (start.first == goal.first) { continue; }
-        auto result = single_agent_plan(a->id, start.first, start.second, goal.first, goal.second);
-        if (result.first == false) {return false;}
         a->locations.resize(1);
+        if (start.first == goal.first) { 
+            if(reservations[1][start.first] == -1) {
+                reservations[1][start.first] = a->id;
+                a->locations.push_back(start);
+                continue;
+            }
+            else {
+                return false;
+            }
+        }
+        auto result = singleAgentPlan(a->id, start.first, start.second, goal.first, goal.second);
+        if (result.first == false) {return false;}
         std::copy(result.second.begin(), result.second.end(), std::back_inserter(a->locations));
     }
 
@@ -76,29 +82,28 @@ bool Replan::replan(std::vector<Agent2*>& agents) {
                 agents[a->p]->goalTime = a->goalTime;
             }
         }
+
+        return true;
     }
 
-    return true;
+    return false;
 }
 
-pair<bool,list<pair<int,int>>> Replan::single_agent_plan(int id, int start,int start_direct,int end, int end_dir) {
-    list<pair<int,int>> path;
-    priority_queue<AstarNode*,vector<AstarNode*>,cmp> open_list;
-    unordered_map<int,AstarNode*> all_nodes;
-    unordered_set<int> close_list;
-    AstarNode* s = new AstarNode(start, start_direct, 0, getManhattanDistance(start,end), nullptr);
-    open_list.push(s);
-    all_nodes[start*4 + start_direct] = s;
+std::pair<bool,std::list<std::pair<int,int>>> Replan::singleAgentPlan(int id, int start, int startDir,int end, int endDir) {
+    std::list<pair<int,int>> path;
+    std::priority_queue<AstarNode*,vector<AstarNode*>,cmp> openList;
+    std::unordered_map<int,AstarNode*> allNodes;
+    std::unordered_set<int> closeList;
+    AstarNode* s = new AstarNode(start, startDir, 0, getManhattanDistance(start,end), nullptr);
+    openList.push(s);
+    allNodes[start*4 + startDir] = s;
     bool success {false};
 
-    while (!open_list.empty()) {
-        AstarNode* curr = open_list.top();
-        open_list.pop();
-        close_list.emplace(curr->location*4 + curr->direction);
-        if (curr->location == end && curr->direction == end_dir) {
-            for (int i{curr->g+1}; i < reservationsCopy.size(); ++i) {
-                reservationsCopy[i][curr->location] = id;
-            }
+    while (!openList.empty()) {
+        AstarNode* curr = openList.top();
+        openList.pop();
+        closeList.emplace(curr->location*4 + curr->direction);
+        if (curr->location == end && curr->direction == endDir) {
             while(curr->parent!=nullptr) {
                 path.emplace_front(make_pair(curr->location, curr->direction));
                 assert(reservationsCopy[curr->g][curr->location] == -1);
@@ -112,12 +117,13 @@ pair<bool,list<pair<int,int>>> Replan::single_agent_plan(int id, int start,int s
         if (reservationsCopy.size() <= curr->g + 1) {
             reservationsCopy.push_back(std::vector<int>(env->map.size(), -1));
         }
-        list<pair<int,int>> neighbors = getNeighbors(curr->location, curr->direction, curr->g + 1);
-        for (const pair<int,int>& neighbor: neighbors) {
-            if (close_list.find(neighbor.first*4 + neighbor.second) != close_list.end())
+        std::list<std::pair<int,int>> neighbors = getNeighbors(curr->location, curr->direction, curr->g + 1);
+        for (const std::pair<int,int>& neighbor: neighbors) {
+            if (closeList.find(neighbor.first*4 + neighbor.second) != closeList.end()) {
                 continue;
-            if (all_nodes.find(neighbor.first*4 + neighbor.second) != all_nodes.end()) {
-                AstarNode* old = all_nodes[neighbor.first*4 + neighbor.second];
+            }
+            if (allNodes.find(neighbor.first*4 + neighbor.second) != allNodes.end()) {
+                AstarNode* old = allNodes[neighbor.first*4 + neighbor.second];
                 if (curr->g + 1 < old->g) {
                     old->g = curr->g+1;
                     old->f = old->h+old->g;
@@ -125,20 +131,18 @@ pair<bool,list<pair<int,int>>> Replan::single_agent_plan(int id, int start,int s
                 }
             }
             else {
-                AstarNode* next_node = new AstarNode(neighbor.first, neighbor.second,
-                    curr->g+1,getManhattanDistance(neighbor.first,end), curr);
-                open_list.push(next_node);
-                all_nodes[neighbor.first*4+neighbor.second] = next_node;
+                AstarNode* next_node = new AstarNode(neighbor.first, neighbor.second, curr->g+1, getManhattanDistance(neighbor.first,end), curr);
+                openList.push(next_node);
+                allNodes[neighbor.first*4+neighbor.second] = next_node;
             }
         }
     }
-    for (auto n: all_nodes) {
+    for (auto n: allNodes) {
         delete n.second;
     }
-    all_nodes.clear();
+    allNodes.clear();
     return {success, path};
 }
-
 
 int Replan::getManhattanDistance(int loc1, int loc2) {
     int loc1_x = loc1/env->cols;
@@ -153,45 +157,54 @@ bool Replan::validateMove(int loc, int loc2) {
     int loc_x = loc/env->cols;
     int loc_y = loc%env->cols;
 
-    if (loc_x >= env->rows || loc_y >= env->cols || env->map[loc] == 1)
+    if (loc_x >= env->rows || loc_y >= env->cols || env->map[loc] == 1) {
         return false;
+    }
 
     int loc2_x = loc2/env->cols;
     int loc2_y = loc2%env->cols;
-    if (abs(loc_x-loc2_x) + abs(loc_y-loc2_y) > 1)
+    if (abs(loc_x-loc2_x) + abs(loc_y-loc2_y) > 1) {
         return false;
+    }
     return true;
-
 }
 
-list<pair<int,int>> Replan::getNeighbors(int location, int direction, int time) {
-    list<pair<int,int>> neighbors;
+std::list<std::pair<int,int>> Replan::getNeighbors(int loc, int dir, int time) {
+    std::list<std::pair<int,int>> neighbors;
     //forward
-    int candidates[4] = { location + 1, location + env->cols, location - 1, location - env->cols };
-    int forward = candidates[direction];
-    int new_direction = direction;
+    int candidates[4] = { loc + 1, loc + env->cols, loc - 1, loc - env->cols };
+    int forward = candidates[dir];
+    int newDir = dir;
 
-    if (forward>=0 && forward < env->map.size() && validateMove(forward,location)) {
+    if (forward>=0 && forward < env->map.size() && validateMove(forward,loc)) {
         int id = reservationsCopy[time-1][forward];
-        int id2 = reservationsCopy[time][location];
+        int id2 = reservationsCopy[time][loc];
         if (reservationsCopy[time][forward] == -1 && (id == -1 || id != id2)) {
-            neighbors.emplace_back(make_pair(forward,new_direction));
+            neighbors.emplace_back(std::make_pair(forward,newDir));
         }
     }
     
-    if (reservationsCopy[time][location] == -1) {
+    if (reservationsCopy[time][loc] == -1) {
         //turn left
-        new_direction = direction-1;
-        if (new_direction == -1)
-            new_direction = 3;
-        neighbors.emplace_back(make_pair(location,new_direction));
+        newDir = dir-1;
+        if (newDir == -1) {
+            newDir = 3;
+        }
+        neighbors.emplace_back(std::make_pair(loc,newDir));
         //turn right
-        new_direction = direction+1;
-        if (new_direction == 4)
-            new_direction = 0;
-        neighbors.emplace_back(make_pair(location,new_direction));
-        neighbors.emplace_back(make_pair(location,direction)); //wait
+        newDir = dir+1;
+        if (newDir == 4) {
+            newDir = 0;
+        }
+        neighbors.emplace_back(std::make_pair(loc,newDir));
+        neighbors.emplace_back(std::make_pair(loc,dir)); //wait
     }
 
     return neighbors;
+}
+
+Replan::~Replan() {
+    for (auto a : agentsCopy) {
+        delete a;
+    }
 }

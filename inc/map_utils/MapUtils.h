@@ -1,16 +1,16 @@
-#ifndef REDUCEMAP_H
-#define REDUCEMAP_H
+#ifndef MAPUTILS_H
+#define MAPUTILS_H
 
 #include <vector>
 #include <list>
 #include <unordered_map>
 #include <unordered_set>
 #include "SharedEnv.h"
-#include "reduce_map/DijkstraNode.h"
+#include "map_utils/DijkstraNode.h"
 
-class ReduceMap {
+class MapUtils {
 public:
-    ReduceMap(SharedEnvironment* _env): env(_env) { }
+    MapUtils(SharedEnvironment* _env): env(_env) { }
 
     static constexpr int EMPTY  { -1 };
     static constexpr int DEADLOC { 2 };
@@ -28,17 +28,6 @@ public:
     };
     std::unordered_map<int, std::unordered_set<std::pair<int,int>,hashFunction>> areaBorders;
 
-    void reduceMapStart();
-    bool reduceMap(bool keepSalient);
-
-    void reduceMapWaypointsStart();
-    bool reduceReduceMapWaypoints(int distance);
-
-    void printReducedMap() const;
-    void printReducedMapWaypoints() const;
-
-    void hierarchyMapStart(int grid);
-
     void divideIntoAreas(int distance);
     void calculateDistanceBetweenAreas();
 
@@ -49,19 +38,6 @@ private:
     const int MAP_PRINT_OFFSET { 0 };
 
     SharedEnvironment* env;
-    std::vector<int> reducedMap;
-    std::vector<std::unordered_map<int,int>> reducedMapWaypoints;
-
-    void reduceMapUpdate();
-
-    bool areNeighboursTraversable(int location) const;;
-    bool isNorthEastEmpty(int location, int x, int y) const;
-    bool isSouthEastEmpty(int location, int x, int y) const;
-    bool isNorthWestEmpty(int location, int x, int y) const;
-    bool isSouthWestEmpty(int location, int x, int y) const;
-
-    int countReducedVerticalNeighbours(int location) const;
-    int countReducedHorizontalNeighbours(int location) const;
 
     bool isDeadLoc(int location) const;
 
@@ -78,4 +54,4 @@ private:
     bool validateMove(int loc1, int loc2) const;
 };
 
-#endif // REDUCEMAP_H
+#endif // MAPUTILS_H
