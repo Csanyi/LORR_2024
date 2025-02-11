@@ -40,9 +40,6 @@ bool Replan::replan(std::vector<Agent2*>& agents) {
             if (i < a->locations.size()) {
                 reservationsCopy[i][a->locations[i].first] = -1;
             }
-            else {
-                reservationsCopy[i][a->locations.back().first] = -1;
-            }
         }
     }
 
@@ -77,10 +74,8 @@ bool Replan::replan(std::vector<Agent2*>& agents) {
         reservations = reservationsCopy;
 
         for (auto a : agentsCopy) {
-            if (agents[a->p]->locations.front() != agents[a->p]->locations.back()) {
-                agents[a->p]->locations = a->locations;
-                agents[a->p]->goalTime = a->goalTime;
-            }
+            agents[a->p]->locations = a->locations;
+            agents[a->p]->goalTime = a->goalTime;
         }
 
         return true;
@@ -100,7 +95,7 @@ std::pair<bool,std::list<std::pair<int,int>>> Replan::singleAgentPlan(int id, in
     bool success {false};
 
     while (!openList.empty()) {
-        if (std::chrono::steady_clock::now() > endTime) { break; }
+        if (std::chrono::steady_clock::now() >= endTime) { break; }
         AstarNode* curr = openList.top();
         openList.pop();
         closeList.emplace(curr->location*4 + curr->direction);

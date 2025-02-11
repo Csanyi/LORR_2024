@@ -61,7 +61,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
             }
         }
 
-        actions = std::vector<Action>(env->num_of_agents, Action::NA);
+        std::vector<Action> actions(env->num_of_agents, Action::NA);
         std::vector<bool> visited(env->num_of_agents, false);
         for (auto& a : agents) {
             if (actions[a->id] == Action::NA) {
