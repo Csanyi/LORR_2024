@@ -90,7 +90,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
     while (std::chrono::steady_clock::now() < lnsEndTime) {
         std::vector<Agent2*> replanAgents;
         std::sample(agents.begin(), agents.end(), std::back_inserter(replanAgents), 10, rng);
-        Replan replan(env, reservations, lnsEndTime);
+        Replan replan(env, reservations);
         bool success = replan.replan(replanAgents);
         if (success) {
             failCnt = 0;

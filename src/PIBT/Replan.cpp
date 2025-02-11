@@ -95,7 +95,6 @@ std::pair<bool,std::list<std::pair<int,int>>> Replan::singleAgentPlan(int id, in
     bool success {false};
 
     while (!openList.empty()) {
-        if (std::chrono::steady_clock::now() >= endTime) { break; }
         AstarNode* curr = openList.top();
         openList.pop();
         closeList.emplace(curr->location*4 + curr->direction);
@@ -109,6 +108,7 @@ std::pair<bool,std::list<std::pair<int,int>>> Replan::singleAgentPlan(int id, in
             success = true;
             break;
         }
+        else if  (curr->f > 40) { break; }
 
         if (reservationsCopy.size() <= curr->g + 1) {
             reservationsCopy.push_back(std::vector<int>(env->map.size(), -1));
@@ -136,7 +136,6 @@ std::pair<bool,std::list<std::pair<int,int>>> Replan::singleAgentPlan(int id, in
     for (auto n: allNodes) {
         delete n.second;
     }
-    allNodes.clear();
     return {success, path};
 }
 
