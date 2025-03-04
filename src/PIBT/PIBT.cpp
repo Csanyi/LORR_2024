@@ -12,7 +12,7 @@ void PIBT::initialize() {
     maputils.eraseDeadEnds();
 
     int areaDist = (env->map.size() < 2048) ? env->cols + 1 : 5;
-    maputils.divideIntoAreas(areaDist);
+    maputils.divideIntoAreas(areaDist, false);
     maputils.calculateDistanceBetweenAreas();
 
     agents.reserve(env->num_of_agents);  

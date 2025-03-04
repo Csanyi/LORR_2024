@@ -28,7 +28,7 @@ public:
     };
     std::unordered_map<int, std::unordered_set<std::pair<int,int>,hashFunction>> areaBorders;
 
-    void divideIntoAreas(int distance);
+    void divideIntoAreas(int distance, bool random);
     void calculateDistanceBetweenAreas();
 
     void eraseDeadEnds();
@@ -41,8 +41,9 @@ private:
 
     bool isDeadLoc(int location) const;
 
-    void markBasePoints(int distance);
+    void markBasePoints(int distance, bool random);
     bool markRandomPoint(int row, int col, int distance, int id);
+    bool markPoint(int row, int col, int distance, int id);
     void createAreasAroundBasePoints();
     void createAreaBorders(int areaId);
     std::list<std::pair<int,int>> getGoalNeighbors(int loc) const;
