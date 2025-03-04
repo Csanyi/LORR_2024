@@ -485,18 +485,23 @@ void ReduceMap::hierarchyMapStart(int grid) {
     std::cout << "Base point cnt: " << cnt << '\n';
 }
 
-void ReduceMap::divideIntoAreas(int distance) {
-    markBasePoints(distance);
+void ReduceMap::divideIntoAreas(int distance, bool random) {
+    markBasePoints(distance, random);
     createAreasAroundBasePoints();
 }
 
-void ReduceMap::markBasePoints(int distance) {
+void ReduceMap::markBasePoints(int distance, bool random) {
     areaMap.resize(env->map.size(), EMPTY);
     int id {0};
 
     for (int i {distance / 2}; i < env->rows; i += distance) {
         for (int j {distance / 2}; j < env->cols; j += distance) {
-            if (markRandomPoint(i, j, distance / 3, id)) { ++id; }
+            if (random) {
+                if (markRandomPoint(i, j, distance / 3, id)) { ++id; }
+            }
+            else {
+                if (markPoint(i, j, distance / 3, id)) { ++id; }
+            }
         }
     }
 
@@ -519,6 +524,26 @@ bool ReduceMap::markRandomPoint(int row, int col, int distance, int id) {
         std::sample(candidates.begin(), candidates.end(), std::back_inserter(out), 1, std::mt19937{std::random_device{}()});
         basePoints.push_back(out[0]);
         return true;
+    }
+
+    return false;
+}
+
+bool ReduceMap::markPoint(int row, int col, int distance, int id) {
+    for (int i = 0; i <= distance; ++i) {        
+        for (int r = row - i; r <= row + i; ++r) {
+            for (int c = col - i; c <= col + i; ++c) {
+                if (r >= 0 && r < env->rows && c >= 0 && c < env->cols) {
+                    if (r == row - i || r == row + i || c == col - i || c == col + i) {
+                        int loc {r * env->cols + c};
+                        if (env->map[loc] == 0) {
+                            basePoints.push_back(loc);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     return false;
