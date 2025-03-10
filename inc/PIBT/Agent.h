@@ -24,6 +24,9 @@ public:
     std::vector<std::pair<int,int>> getNeighborsWithDist();
     void calculateNeighborDists();
 
+    int getCompletedTaskCnt() const { return completedTaskCnt; }
+    int getClosedCnt() const { return closedSum; }
+
 private:
     SharedEnvironment* env;
     ReduceMap* reduce;
@@ -32,6 +35,10 @@ private:
     int goalDist {-1};
     std::list<int>::const_iterator nextArea;
     std::list<int>::const_iterator endArea;
+
+    int closedPerTask {0};
+    int closedSum {0};
+    int completedTaskCnt {0};
 
     bool validateMove(int loc1, int loc2) const;
     void initializeHeuristic(int areaFrom, int areaTo);

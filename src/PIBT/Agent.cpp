@@ -16,6 +16,12 @@ void Agent::setGoal() {
 
     initializeHeuristic(areaFrom, areaTo);
 
+    if (env->curr_timestep > 0) {
+        closedSum += closedPerTask;
+        closedPerTask = 0;
+        ++completedTaskCnt;
+    }
+
     goalDist = reduce->basePointDistances[areaFrom][areaTo].first + heuristic.abstractDist(getLoc(), getDir());
     p = goalDist;
 }
@@ -93,6 +99,7 @@ bool Agent::validateMove(int loc1, int loc2) const {
 }
 
 void Agent::initializeHeuristic(int areaFrom, int areaTo) {
+    closedPerTask += heuristic.getClosedSize();
     heuristic.reset();
 
     if (areaFrom == areaTo) {

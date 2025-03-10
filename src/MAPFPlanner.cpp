@@ -30,5 +30,6 @@ void MAPFPlanner::plan(int time_limit, vector<Action>& actions) {
 
     if (env->curr_timestep == 4999) {
         std::cout << "******** Average planning time " << cnt / 5000.f << " ms ********\n";
+        std::cout << "******** Average closed node count per goal " << pibt.countClosedNodeAvg() << " ********\n";
     }
 }

@@ -16,6 +16,8 @@ public:
     void initialize();
     void nextStep(int timeLimit, std::vector<Action>& actions);
 
+    double countClosedNodeAvg() const;
+
 private:
     const unsigned int threadCnt {std::thread::hardware_concurrency()};
     int agentsPerThread;

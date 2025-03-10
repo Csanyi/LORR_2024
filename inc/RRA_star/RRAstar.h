@@ -21,6 +21,7 @@ public:
     int abstractDist(int loc, int dir);
     void reset();
     bool isDistKnown(int loc, int dir) const;
+    int getClosedSize() const { return closed.size(); }
 
 private:
     SharedEnvironment* env;

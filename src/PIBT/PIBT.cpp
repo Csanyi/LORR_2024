@@ -192,6 +192,17 @@ void PIBT::calculateGoalDistances() {
     }
 }
 
+double PIBT::countClosedNodeAvg() const {
+    int closedSum {0};
+    int taskSum {0};
+    for (auto& agent : agents) {
+        closedSum += agent->getClosedCnt();
+        taskSum += agent->getCompletedTaskCnt();
+    }
+
+    return static_cast<double>(closedSum) / taskSum;
+}
+
 PIBT::~PIBT() {
     for (auto a : agents) {
         delete a;
