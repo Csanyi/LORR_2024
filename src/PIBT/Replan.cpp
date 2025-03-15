@@ -48,8 +48,8 @@ bool Replan::replan(std::vector<Agent*>& agents) {
         auto goal = a->locations.back();
         a->locations.resize(1);
         if (start.first == goal.first) { 
-            if(reservations[1][start.first] == -1) {
-                reservations[1][start.first] = a->id;
+            if(reservationsCopy[1][start.first] == -1) {
+                reservationsCopy[1][start.first] = a->id;
                 a->locations.push_back(start);
                 continue;
             }
