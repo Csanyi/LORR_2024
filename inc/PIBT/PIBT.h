@@ -5,7 +5,7 @@
 #include <thread>
 #include "SharedEnv.h"
 #include "ActionModel.h"
-#include "PIBT/Agent2.h"
+#include "PIBT/Agent.h"
 #include "map_utils/MapUtils.h"
 
 class PIBT {
@@ -21,15 +21,15 @@ private:
     int agentsPerThread;
     int remainingAgents;
     SharedEnvironment* env;
-    std::vector<Agent2*> agentsById;
-    std::vector<Agent2*> agents;
+    std::vector<Agent*> agentsById;
+    std::vector<Agent*> agents;
     std::vector<std::vector<int>> reservations;
     MapUtils maputils;
     int time;
 
-    bool getNextLoc(Agent2* const a, const Agent2* const b);
-    Action getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent2* const a);
-    Action getNextAction2(Agent2* const a);
+    bool getNextLoc(Agent* const a, const Agent* const b);
+    Action getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent* const a);
+    Action getNextAction2(Agent* const a);
 
     void calculateGoalDistances();
 };

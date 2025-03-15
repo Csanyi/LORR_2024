@@ -3,38 +3,46 @@
 
 void Agent::setGoal() {
     if (env->goal_locations[id].empty()) {
-        goal = getLoc();
+        goal = getLoc(0);
     }
     else {
         goal = env->goal_locations[id].front().first;
     }
 
-    int areaFrom {maputils->areaMap[getLoc()]};
+    int areaFrom {maputils->areaMap[getLoc(0)]};
     int areaTo {maputils->areaMap[goal]};
     nextArea = maputils->basePointDistances[areaFrom][areaTo].second.cbegin();
     endArea = maputils->basePointDistances[areaFrom][areaTo].second.cend();
 
-    initializeHeuristic(areaFrom, areaTo);
+    initializeHeuristic(areaFrom, areaTo, 0);
 
-    goalDist = maputils->basePointDistances[areaFrom][areaTo].first + heuristic.abstractDist(getLoc(), getDir());
+    goalDist = maputils->basePointDistances[areaFrom][areaTo].first + heuristic.abstractDist(getLoc(0), getDir(0));
     p = goalDist;
 }
 
-void Agent::setArea() {
-    int areaFrom {maputils->areaMap[getLoc()]};
+void Agent::setArea(int time) {
+    int areaFrom {maputils->areaMap[getLoc(time)]};
 
     if (nextArea != endArea && areaFrom == *nextArea) {
         int areaTo {maputils->areaMap[goal]}; 
-        initializeHeuristic(areaFrom, areaTo);
+        initializeHeuristic(areaFrom, areaTo, time);
     }
 }
 
-int Agent::getLoc() const {
-    return env->curr_states[id].location;
+int Agent::getLoc(int time) const {
+    if (locations.size() < time) {
+        assert(false);
+        return -1;
+    }
+    return locations[time].first;
 }
 
-int Agent::getDir() const {
-    return env->curr_states[id].orientation;
+int Agent::getDir(int time) const {
+    if (locations.size() <= time) {
+        assert(false);
+        return -1;
+    }
+    return locations[time].second;
 }
 
 bool Agent::isNewGoal() const {
@@ -45,9 +53,9 @@ bool Agent::isNewGoal() const {
     return goal != env->goal_locations[id].front().first;
 }
 
-std::vector<std::pair<int,int>> Agent::getNeighborsWithDist() {
+std::vector<std::pair<int,int>> Agent::getNeighborsWithDist(int time) {
     std::vector<std::pair<int,int>> neighbours;
-    int loc {getLoc()};
+    int loc {getLoc(time)};
     int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
 
     for (int i{0}; i < 4; ++i) {
@@ -56,15 +64,15 @@ std::vector<std::pair<int,int>> Agent::getNeighborsWithDist() {
         }
     }
 
-    neighbours.emplace_back(std::make_pair(loc, heuristic.abstractDist(loc, getDir())));
+    neighbours.emplace_back(std::make_pair(loc, heuristic.abstractDist(loc, getDir(time))));
 
     return neighbours;
 }
 
-void Agent::calculateNeighborDists() {
-    setArea();
+void Agent::calculateNeighborDists(int time) {
+    setArea(time);
 
-    int loc {getLoc()};
+    int loc {getLoc(time)};
     int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
 
     for (int i{0}; i < 4; ++i) {
@@ -73,7 +81,7 @@ void Agent::calculateNeighborDists() {
         }
     }
 
-    heuristic.abstractDist(loc, getDir());
+    heuristic.abstractDist(loc, getDir(time));
 }
 
 bool Agent::validateMove(int loc1, int loc2) const {
@@ -92,15 +100,15 @@ bool Agent::validateMove(int loc1, int loc2) const {
     return true;
 }
 
-void Agent::initializeHeuristic(int areaFrom, int areaTo) {
+void Agent::initializeHeuristic(int areaFrom, int areaTo, int time) {
     heuristic.reset();
 
     if (areaFrom == areaTo) {
         nextArea = endArea;
-        heuristic.initialize(getLoc(), getDir(), goal);
+        heuristic.initialize(getLoc(time), getDir(time), goal);
     }
     else {
         ++nextArea;
-        heuristic.initialize(getLoc(), getDir(), *nextArea, maputils);
+        heuristic.initialize(getLoc(time), getDir(time), *nextArea, maputils);
     }
 }

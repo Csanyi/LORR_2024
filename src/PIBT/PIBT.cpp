@@ -19,7 +19,7 @@ void PIBT::initialize() {
     agentsById.reserve(env->num_of_agents);    
   
     for (int i {0}; i < env->num_of_agents; ++i) {
-        Agent2* agent = new Agent2(i, env, &maputils);
+        Agent* agent = new Agent(i, env, &maputils);
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
@@ -42,7 +42,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 
     calculateGoalDistances();
 
-    std::sort(agents.begin(), agents.end(), [](const Agent2* a, const Agent2* b) {
+    std::sort(agents.begin(), agents.end(), [](const Agent* a, const Agent* b) {
         if (a->p == b->p) {
             return a->id < b->id;
         }
@@ -88,7 +88,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
     int iterations {0};
 
     while (std::chrono::steady_clock::now() < lnsEndTime) {
-        std::vector<Agent2*> replanAgents;
+        std::vector<Agent*> replanAgents;
         std::sample(agents.begin(), agents.end(), std::back_inserter(replanAgents), 10, rng);
         Replan replan(env, reservations);
         bool success = replan.replan(replanAgents);
@@ -114,7 +114,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
     reservations.clear();
 }
 
-bool PIBT::getNextLoc(Agent2* const a, const Agent2* const b) {
+bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
     a->locations.push_back({-1,-1});
     auto neighbors = a->getNeighborsWithDist(time);
     std::sort(neighbors.begin(), neighbors.end(), [this, &a, &b](const std::pair<int, int>& n1, const std::pair<int, int>& n2) {
@@ -148,7 +148,7 @@ bool PIBT::getNextLoc(Agent2* const a, const Agent2* const b) {
     return false;
 }
 
-Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent2* const a) {
+Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visited, Agent* const a) {
     if (a->getLoc(time+1) == -1) { assert(false); }
     Action action;
     int dir;
@@ -217,7 +217,7 @@ Action PIBT::getNextAction(std::vector<Action>& actions, std::vector<bool>& visi
     return action;
 }
 
-Action PIBT::getNextAction2(Agent2* const a) {
+Action PIBT::getNextAction2(Agent* const a) {
     Action action;
     int dir;
     int diff {a->getLoc(0) - a->getLoc(1)};

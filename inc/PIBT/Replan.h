@@ -4,7 +4,7 @@
 #include <vector>
 #include <list>
 #include "SharedEnv.h"
-#include "PIBT/Agent2.h"
+#include "PIBT/Agent.h"
 
 class Replan {
 public:
@@ -12,13 +12,13 @@ public:
         env(_env), reservations(_reservations), reservationsCopy(_reservations) {}
     ~Replan();
 
-    bool replan(std::vector<Agent2*>& agents);
+    bool replan(std::vector<Agent*>& agents);
 
 private:
     SharedEnvironment* env;
     std::vector<std::vector<int>>& reservations;
     std::vector<std::vector<int>> reservationsCopy;
-    std::vector<Agent2*> agentsCopy;
+    std::vector<Agent*> agentsCopy;
     std::pair<bool,std::list<std::pair<int,int>>> singleAgentPlan(int id, int start, int startDir, int end, int endDir);
     int getManhattanDistance(int loc1, int loc2);
     std::list<std::pair<int,int>> getNeighbors(int loc, int dir, int time);

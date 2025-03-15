@@ -9,20 +9,21 @@ class Agent {
 public:
     const int id;
     int p {-1};
-    int nextLoc {-1};
+    int goalTime;
+    std::vector<std::pair<int,int>> locations;
 
     Agent(int _id, SharedEnvironment* _env, MapUtils* _maputils): id(_id), heuristic(_env), env(_env), maputils(_maputils) { }
 
     void setGoal();
     int getGoal() const { return goal; }
-    int getLoc() const;
-    int getDir() const;
+    int getLoc(int time) const;
+    int getDir(int time) const;
     bool isNewGoal() const;
     void boostPriority() { p -= 1000; }
     void resetPriority() { p = goalDist; }
 
-    std::vector<std::pair<int,int>> getNeighborsWithDist();
-    void calculateNeighborDists();
+    std::vector<std::pair<int,int>> getNeighborsWithDist(int time);
+    void calculateNeighborDists(int time);
 
 private:
     SharedEnvironment* env;
@@ -34,8 +35,8 @@ private:
     std::list<int>::const_iterator endArea;
 
     bool validateMove(int loc1, int loc2) const;
-    void initializeHeuristic(int areaFrom, int areaTo);
-    void setArea();
+    void initializeHeuristic(int areaFrom, int areaTo, int time);
+    void setArea(int time);
 };
 
 #endif // AGENT_H

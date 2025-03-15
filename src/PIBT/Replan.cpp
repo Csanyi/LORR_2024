@@ -21,13 +21,13 @@ struct cmp {
     }
 };
 
-bool Replan::replan(std::vector<Agent2*>& agents) {
+bool Replan::replan(std::vector<Agent*>& agents) {
     agentsCopy.clear();
     std::random_device rd;
     std::mt19937 g(rd());
 
     for (int i {0}; i < agents.size(); ++i) {
-        Agent2* agent = new Agent2(agents[i]->id, env, nullptr);
+        Agent* agent = new Agent(agents[i]->id, env, nullptr);
         agent->locations = agents[i]->locations;
         agent->p = i;
         agentsCopy.push_back(agent);
