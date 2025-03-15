@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <list>
 #include "RRA_star/RRAstarNode.h"
-#include "reduce_map/ReduceMap.h"
+#include "map_utils/MapUtils.h"
 #include "SharedEnv.h"
 
 class RRAstar {
@@ -16,7 +16,7 @@ public:
     ~RRAstar();
 
     void initialize(int start, int starDir, int goal);
-    void initialize(int start, int starDir, int areaId, const ReduceMap* reduce);
+    void initialize(int start, int starDir, int areaId, const MapUtils* maputils);
 
     int abstractDist(int loc, int dir);
     void reset();

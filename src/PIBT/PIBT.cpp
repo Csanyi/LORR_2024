@@ -11,17 +11,17 @@ void PIBT::initialize() {
     prevReservations.resize(env->map.size(), -1);
     nextReservations.resize(env->map.size(), -1);
 
-    reduce.eraseDeadEnds();
+    maputils.eraseDeadEnds();
 
     int areaDist = (env->map.size() < 2048) ? env->cols + 1 : 5;
-    reduce.divideIntoAreas(areaDist, false);
-    reduce.calculateDistanceBetweenAreas();
+    maputils.divideIntoAreas(areaDist, false);
+    maputils.calculateDistanceBetweenAreas();
 
     agents.reserve(env->num_of_agents);  
     agentsById.reserve(env->num_of_agents);    
   
     for (int i {0}; i < env->num_of_agents; ++i) {
-        Agent* agent = new Agent(i, env, &reduce);
+        Agent* agent = new Agent(i, env, &maputils);
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
@@ -33,7 +33,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 
     for (auto& agent : agents) {
         prevReservations[agent->getLoc()] = agent->id;
-        if (reduce.deadEndMap[agent->getLoc()] == ReduceMap::DEADLOC) { agent->boostPriority(); }
+        if (maputils.deadEndMap[agent->getLoc()] == MapUtils::DEADLOC) { agent->boostPriority(); }
     }
 
     calculateGoalDistances();
@@ -71,7 +71,7 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 bool PIBT::getNextLoc(Agent* const a, const Agent* const b) {
     auto neighbors = a->getNeighborsWithDist();
     std::sort(neighbors.begin(), neighbors.end(), [this, &a, &b](const std::pair<int, int>& n1, const std::pair<int, int>& n2) {
-        if (reduce.deadEndMap[n1.first] == ReduceMap::DEADLOC && a->getGoal() != n1.first) { return false; }
+        if (maputils.deadEndMap[n1.first] == MapUtils::DEADLOC && a->getGoal() != n1.first) { return false; }
 
         if (n1.second == n2.second) {
             return prevReservations[n1.first] == -1;

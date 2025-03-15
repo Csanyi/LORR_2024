@@ -21,15 +21,15 @@ void RRAstar::initialize(int start, int startDir, int goal) {
     }
 }
 
-void RRAstar::initialize(int start, int startDir, int areaId, const ReduceMap* reduce) {
+void RRAstar::initialize(int start, int startDir, int areaId, const MapUtils* maputils) {
     this->start = start;
-    for (const auto& border : reduce->areaBorders.at(areaId)) {
+    for (const auto& border : maputils->areaBorders.at(areaId)) {
             RRAstarNode* n = new RRAstarNode(border.first, border.second, 1, getManhattanDist(border.first, start));
             open.push(n);
             allNodes[border.first * 4 + border.second] = n;
     }
 
-    for (const auto& areaLocation : reduce->areaLocations.at(areaId)) {
+    for (const auto& areaLocation : maputils->areaLocations.at(areaId)) {
         for (int i {0}; i < 4; ++i) {
             RRAstarNode* s = new RRAstarNode(areaLocation, i, 0, 0);
             closed[areaLocation * 4 + i] = s;
@@ -110,7 +110,7 @@ bool RRAstar::isDistKnown(int loc, int dir) const {
     return closed.find(loc * 4 + dir) != closed.end();
 }
 
-std::list<std::pair<int,int>> RRAstar::getNeighbors(int loc,int dir) const
+std::list<std::pair<int,int>> RRAstar::getNeighbors(int loc, int dir) const
 {
     std::list<std::pair<int,int>> neighbors;
     //forward

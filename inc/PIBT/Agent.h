@@ -3,7 +3,7 @@
 
 #include "SharedEnv.h"
 #include "RRA_star/RRAstar.h"
-#include "reduce_map/ReduceMap.h"
+#include "map_utils/MapUtils.h"
 
 class Agent {
 public:
@@ -11,7 +11,7 @@ public:
     int p {-1};
     int nextLoc {-1};
 
-    Agent(int _id, SharedEnvironment* _env, ReduceMap* _reduce): id(_id), heuristic(_env), env(_env), reduce(_reduce) { }
+    Agent(int _id, SharedEnvironment* _env, MapUtils* _maputils): id(_id), heuristic(_env), env(_env), maputils(_maputils) { }
 
     void setGoal();
     int getGoal() const { return goal; }
@@ -29,7 +29,7 @@ public:
 
 private:
     SharedEnvironment* env;
-    ReduceMap* reduce;
+    MapUtils* maputils;
     RRAstar heuristic;
     int goal {-1};
     int goalDist {-1};

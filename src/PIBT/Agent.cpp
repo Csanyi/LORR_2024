@@ -9,10 +9,10 @@ void Agent::setGoal() {
         goal = env->goal_locations[id].front().first;
     }
 
-    int areaFrom {reduce->areaMap[getLoc()]};
-    int areaTo {reduce->areaMap[goal]};
-    nextArea = reduce->basePointDistances[areaFrom][areaTo].second.cbegin();
-    endArea = reduce->basePointDistances[areaFrom][areaTo].second.cend();
+    int areaFrom {maputils->areaMap[getLoc()]};
+    int areaTo {maputils->areaMap[goal]};
+    nextArea = maputils->basePointDistances[areaFrom][areaTo].second.cbegin();
+    endArea = maputils->basePointDistances[areaFrom][areaTo].second.cend();
 
     initializeHeuristic(areaFrom, areaTo);
 
@@ -22,15 +22,15 @@ void Agent::setGoal() {
         ++completedTaskCnt;
     }
 
-    goalDist = reduce->basePointDistances[areaFrom][areaTo].first + heuristic.abstractDist(getLoc(), getDir());
+    goalDist = maputils->basePointDistances[areaFrom][areaTo].first + heuristic.abstractDist(getLoc(), getDir());
     p = goalDist;
 }
 
 void Agent::setArea() {
-    int areaFrom {reduce->areaMap[getLoc()]};
+    int areaFrom {maputils->areaMap[getLoc()]};
 
     if (nextArea != endArea && areaFrom == *nextArea) {
-        int areaTo {reduce->areaMap[goal]}; 
+        int areaTo {maputils->areaMap[goal]}; 
         initializeHeuristic(areaFrom, areaTo);
     }
 }
@@ -108,6 +108,6 @@ void Agent::initializeHeuristic(int areaFrom, int areaTo) {
     }
     else {
         ++nextArea;
-        heuristic.initialize(getLoc(), getDir(), *nextArea, reduce);
+        heuristic.initialize(getLoc(), getDir(), *nextArea, maputils);
     }
 }
