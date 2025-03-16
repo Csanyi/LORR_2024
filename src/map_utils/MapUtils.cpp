@@ -158,9 +158,11 @@ void MapUtils::createAreasAroundBasePoints() {
     std::vector<std::unordered_map<int, DijkstraNode*>> allNodes(basePoints.size());
 
     for (int i {0}; i < basePoints.size(); ++i) {
-        DijkstraNode* s = new DijkstraNode(basePoints[i], EMPTY, 0);
-        open[i].push(s);
-        allNodes[i][s->location] = s;
+        for (int j {0}; j < 4; ++j) {
+            DijkstraNode* s = new DijkstraNode(basePoints[i], j, 0);
+            open[i].push(s);
+            allNodes[i][s->location*4 + j] = s;
+        }
     }
 
     int distance {0};
@@ -174,22 +176,27 @@ void MapUtils::createAreasAroundBasePoints() {
             DijkstraNode* curr {open[i].top()};
             while (!open[i].empty() && curr->g <= distance) {
                 open[i].pop();
-                closed[i][curr->location] = curr;
+                closed[i][curr->location*4 + curr->direction] = curr;
+                if (areaMap[curr->location] != EMPTY && areaMap[curr->location] != i) {
+                    if (!open[i].empty()) {
+                        curr = open[i].top();
+                    }
+                    continue; 
+                }
 
-                for (const auto& neighbor: getNeighbors(curr->location, curr->parentLocation)) {
-                    if (closed[i].find(neighbor.first) != closed[i].end()) { continue; }
+                for (const auto& neighbor: getNeighbors(curr->location, curr->direction)) {
+                    if (closed[i].find(neighbor.first*4 + neighbor.second) != closed[i].end()) { continue; }
 
-                    if (allNodes[i].find(neighbor.first) != allNodes[i].end()) {
-                        DijkstraNode* old = allNodes[i][neighbor.first];
-                        if (curr->g + neighbor.second < old->g) {
-                            old->g = curr->g + neighbor.second;
-                            old->parentLocation = curr->location;
+                    if (allNodes[i].find(neighbor.first*4 + neighbor.second) != allNodes[i].end()) {
+                        DijkstraNode* old = allNodes[i][neighbor.first*4 + neighbor.second];
+                        if (curr->g + 1 < old->g) {
+                            old->g = curr->g + 1;
                         }
                     } 
-                    else if (areaMap[neighbor.first] == EMPTY) {
-                        DijkstraNode* nextNode = new DijkstraNode(neighbor.first, curr->location, curr->g + neighbor.second);
+                    else {
+                        DijkstraNode* nextNode = new DijkstraNode(neighbor.first, neighbor.second, curr->g + 1);
                         open[i].push(nextNode);
-                        allNodes[i][nextNode->location] = nextNode;
+                        allNodes[i][nextNode->location*4 + nextNode->direction] = nextNode;
                     }
                 }
 
@@ -241,23 +248,30 @@ std::list<std::pair<int,int>> MapUtils::getGoalNeighbors(int loc) const {
     return neighbours;
 }
 
-std::list<std::pair<int,int>> MapUtils::getNeighbors(int loc, int parent_loc) const {
+std::list<std::pair<int,int>> MapUtils::getNeighbors(int loc, int dir) const {
     std::list<std::pair<int,int>> neighbors;
     int candidates[4] {loc + 1, loc + env->cols, loc - 1, loc - env->cols};
 
-    for (int candidate : candidates) {
-        if (candidate == parent_loc) { continue; }
-        if (validateMove(candidate, loc)) {
-            int cost;
-            if (candidate == loc + (loc - parent_loc) || parent_loc == EMPTY) {
-                cost = 1;
-            } else {
-                cost = 2;
-            }
-
-            neighbors.emplace_back(std::make_pair(candidate, cost));
-        }
+    //forward
+    int forward {candidates[dir]};
+    int new_direction {dir};
+    if (forward >= 0 && forward < env->map.size() && validateMove(forward, loc)) {
+        neighbors.emplace_back(std::make_pair(forward, new_direction));
     }
+
+    //turn left
+    new_direction = dir - 1;
+    if (new_direction == -1) {
+        new_direction = 3;
+    }
+    neighbors.emplace_back(std::make_pair(loc, new_direction));
+
+    //turn right
+    new_direction = dir + 1;
+    if (new_direction == 4) {
+        new_direction = 0;
+    }
+    neighbors.emplace_back(std::make_pair(loc, new_direction));
 
     return neighbors;
 }
@@ -297,41 +311,53 @@ void MapUtils::dijkstra(int startLoc, int id) {
     std::unordered_map<int, DijkstraNode*> closed;
     std::unordered_map<int, DijkstraNode*> allNodes;
 
-    DijkstraNode* s = new DijkstraNode(startLoc, EMPTY, 0, nullptr);
-    open.push(s);
-    allNodes[s->location] = s;
+    for (int i {0}; i < 4; ++i) {
+        DijkstraNode* s = new DijkstraNode(startLoc, i, 0, nullptr);
+        open.push(s);
+        allNodes[s->location*4 + i] = s;
+    }
 
     while (!open.empty()) {
         DijkstraNode* curr = open.top();
         open.pop();
-        closed[curr->location] = curr;
+        closed[curr->location*4 + curr->direction] = curr;
 
-        for (const auto& neighbor: getNeighbors(curr->location, curr->parentLocation)) {
-            if (closed.find(neighbor.first) != closed.end()) {
+        for (const auto& neighbor: getNeighbors(curr->location, curr->direction)) {
+            if (closed.find(neighbor.first*4 + neighbor.second) != closed.end()) {
                 continue;
             }
 
-            if (allNodes.find(neighbor.first) != allNodes.end()) {
-                DijkstraNode* old = allNodes[neighbor.first];
-                if (curr->g + neighbor.second < old->g) {
-                    old->g = curr->g + neighbor.second;
-                    old->parentLocation = curr->location;
+            if (allNodes.find(neighbor.first*4 + neighbor.second) != allNodes.end()) {
+                DijkstraNode* old = allNodes[neighbor.first*4 + neighbor.second];
+                if (curr->g + 1 < old->g) {
+                    old->g = curr->g + 1;
                     old->parent = curr;
                 }
             } 
             else {
-                DijkstraNode* nextNode = new DijkstraNode(neighbor.first, curr->location, curr->g + neighbor.second, curr);
+                DijkstraNode* nextNode = new DijkstraNode(neighbor.first, neighbor.second, curr->g + 1, curr);
                 open.push(nextNode);
-                allNodes[nextNode->location] = nextNode;
+                allNodes[nextNode->location*4 + nextNode->direction] = nextNode;
             }
         }
     }
 
     for (int i {0}; i < basePoints.size(); ++i) {
-        auto it {closed.find(basePoints[i])};
-        if (it != closed.end()) {
-            basePointDistances[id][i].first = it->second->g;
-            backTrack(id, i, it->second);
+        auto minIt {closed.find(basePoints[i]*4)};
+        for (int j {1}; j < 4; ++j) {
+            auto it {closed.find(basePoints[i]*4 + j)};
+            if (it != closed.end() && minIt == closed.end()) {
+                minIt = it;
+            }
+            else if (it != closed.end() && minIt != closed.end()) {
+                if (it->second->g < minIt-> second->g) {
+                    minIt = it;
+                }
+            }
+        }
+        if (minIt != closed.end()) {
+            basePointDistances[id][i].first = minIt->second->g;
+            backTrack(id, i, minIt->second);
         }
     }
 

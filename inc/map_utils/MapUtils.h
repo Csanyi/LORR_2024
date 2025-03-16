@@ -53,7 +53,7 @@ private:
     void dijkstra(int startLoc, int id);
     void backTrack(int from, int to, DijkstraNode* current);
 
-    std::list<std::pair<int,int>> getNeighbors(int loc, int parent_loc) const;
+    std::list<std::pair<int,int>> getNeighbors(int loc, int dir) const;
     bool validateMove(int loc1, int loc2) const;
 };
 
