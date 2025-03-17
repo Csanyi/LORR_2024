@@ -4,6 +4,7 @@
 
 void RRAstar::initialize(int start, int startDir, int goal) {
     this->start = start;
+    areaSize = 0;
     for (const std::pair<int,int>& neighbor : getGoalNeighbors(goal)) {
         RRAstarNode* n = new RRAstarNode(neighbor.first, neighbor.second, 1, getManhattanDist(neighbor.first, start));
         open.push(n);
@@ -12,8 +13,9 @@ void RRAstar::initialize(int start, int startDir, int goal) {
 
     for (int i {0}; i < 4; ++i) {
         RRAstarNode* s = new RRAstarNode(goal, i, 0, 0);
-        closed[goal * 4 + i] = s;
-        allNodes[goal * 4 + i] = s;
+        int key {goal * 4 + i};
+        closed[key] = s;
+        allNodes[key] = s;
     }
 
     if (start != goal) {
@@ -23,6 +25,7 @@ void RRAstar::initialize(int start, int startDir, int goal) {
 
 void RRAstar::initialize(int start, int startDir, int areaId, const MapUtils* maputils) {
     this->start = start;
+    areaSize = maputils->areaLocations.size() * 4;
     for (const auto& border : maputils->areaBorders.at(areaId)) {
             RRAstarNode* n = new RRAstarNode(border.first, border.second, 1, getManhattanDist(border.first, start));
             open.push(n);
@@ -32,8 +35,9 @@ void RRAstar::initialize(int start, int startDir, int areaId, const MapUtils* ma
     for (const auto& areaLocation : maputils->areaLocations.at(areaId)) {
         for (int i {0}; i < 4; ++i) {
             RRAstarNode* s = new RRAstarNode(areaLocation, i, 0, 0);
-            closed[areaLocation * 4 + i] = s;
-            allNodes[areaLocation * 4 + i] = s;
+            int key {areaLocation * 4 + i};
+            closed[key] = s;
+            allNodes[key] = s;
         }
     }
 
@@ -93,6 +97,7 @@ void RRAstar::reset() {
         delete n.second;
     }
 
+    areaSize = 0;
     allNodes.clear();
     closed.clear();
     open = std::priority_queue<RRAstarNode*, std::vector<RRAstarNode*>, RRAstarNode::cmp>();

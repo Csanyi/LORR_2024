@@ -21,7 +21,7 @@ public:
     int abstractDist(int loc, int dir);
     void reset();
     bool isDistKnown(int loc, int dir) const;
-    int getClosedSize() const { return closed.size(); }
+    int getClosedSize() const { return closed.size() - areaSize; }
 
 private:
     SharedEnvironment* env;
@@ -29,6 +29,7 @@ private:
     std::unordered_map<int, RRAstarNode*> closed;
     std::unordered_map<int, RRAstarNode*> allNodes;
     int start;
+    int areaSize {0};
 
     bool resume(int loc, int dir);
     int getManhattanDist(int loc1, int loc2) const;
