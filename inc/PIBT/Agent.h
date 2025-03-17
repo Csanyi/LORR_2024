@@ -8,10 +8,11 @@
 class Agent {
 public:
     const int id;
-    int p {-1};
+    double p;
     int nextLoc {-1};
 
-    Agent(int _id, SharedEnvironment* _env, MapUtils* _maputils): id(_id), heuristic(_env), env(_env), maputils(_maputils) { }
+    Agent(int _id, double _p, SharedEnvironment* _env, MapUtils* _maputils): 
+        id(_id), priority(_p), p(_p), heuristic(_env), env(_env), maputils(_maputils) { }
 
     void setGoal();
     int getGoal() const { return goal; }
@@ -19,7 +20,7 @@ public:
     int getDir() const;
     bool isNewGoal() const;
     void boostPriority() { p -= 1000; }
-    void resetPriority() { p = goalDist; }
+    void resetPriority() { p = priority; }
 
     std::vector<std::pair<int,int>> getNeighborsWithDist();
     void calculateNeighborDists();
@@ -31,8 +32,8 @@ private:
     SharedEnvironment* env;
     MapUtils* maputils;
     RRAstar heuristic;
+    const double priority;
     int goal {-1};
-    int goalDist {-1};
     std::list<int>::const_iterator nextArea;
     std::list<int>::const_iterator endArea;
 

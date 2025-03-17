@@ -18,10 +18,19 @@ void PIBT::initialize() {
     maputils.calculateDistanceBetweenAreas();
 
     agents.reserve(env->num_of_agents);  
-    agentsById.reserve(env->num_of_agents);    
+    agentsById.reserve(env->num_of_agents);   
+    
+    std::mt19937 gen(42);
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    std::set<double> uniqueValues;
   
     for (int i {0}; i < env->num_of_agents; ++i) {
-        Agent* agent = new Agent(i, env, &maputils);
+        double p {dis(gen)};
+        while (uniqueValues.find(p) != uniqueValues.end()) {
+            p = dis(gen);
+        }
+        uniqueValues.insert(p);
+        Agent* agent = new Agent(i, p, env, &maputils);
         agents.push_back(agent);
         agentsById.push_back(agent);
     }
@@ -33,7 +42,10 @@ void PIBT::nextStep(int timeLimit, std::vector<Action>& actions) {
 
     for (auto& agent : agents) {
         prevReservations[agent->getLoc()] = agent->id;
-        if (maputils.deadEndMap[agent->getLoc()] == MapUtils::DEADLOC) { agent->boostPriority(); }
+        if (maputils.deadEndMap[agent->getLoc()] == MapUtils::DEADLOC) {
+            agent->boostPriority(); 
+        }
+        --agent->p;
     }
 
     calculateGoalDistances();

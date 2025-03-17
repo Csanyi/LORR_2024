@@ -22,8 +22,7 @@ void Agent::setGoal() {
         ++completedTaskCnt;
     }
 
-    goalDist = maputils->basePointDistances[areaFrom][areaTo].first + heuristic.abstractDist(getLoc(), getDir());
-    p = goalDist;
+    resetPriority();
 }
 
 void Agent::setArea() {
