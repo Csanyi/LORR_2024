@@ -25,7 +25,7 @@ void RRAstar::initialize(int start, int startDir, int goal) {
 
 void RRAstar::initialize(int start, int startDir, int areaId, const MapUtils* maputils) {
     this->start = start;
-    areaSize = maputils->areaLocations.size() * 4;
+    areaSize = maputils->areaLocations.at(areaId).size() * 4;
     for (const auto& border : maputils->areaBorders.at(areaId)) {
             RRAstarNode* n = new RRAstarNode(border.first, border.second, 1, getManhattanDist(border.first, start));
             open.push(n);
